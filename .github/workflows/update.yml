@@ -1,0 +1,31 @@
+name: Update Dashboard
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install snowflake-connector-python
+      - name: Build dashboard
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        run: python build.py
+      - name: Commit and push
+        run: |
+          git config --global user.email "bot@sa-nu.com"
+          git config --global user.name "SANU Bot"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Update dashboard $(date +'%Y-%m-%d %H:%M')"
+          git push
