@@ -8,7 +8,7 @@ conn = snowflake.connector.connect(
     account=os.environ['SNOWFLAKE_ACCOUNT'],
     user=os.environ['SNOWFLAKE_USER'],
     password=os.environ['SNOWFLAKE_PASSWORD'],
-    warehouse='COMPUTE_WH',
+    warehouse='WH_USER',
     database='PRD_ANALYTICS',
     schema='CORES'
 )
