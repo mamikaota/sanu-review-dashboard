@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SANU 2nd Home — エリマネ レビューダッシュボード</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:        #F2EEE4;
+  --bg-mid:    #E9E3D1;
+  --bg-deep:   #D1C8A6;
+  --text:      #322E21;
+  --muted:     #6A6250;
+  --orange:    #EC572E;
+  --orange-lt: #FBE8E2;
+  --orange-bd: #F5C4B0;
+  --white:     #FFFFFF;
+  --forest:    #2C4A2A;
+  --sage:      #6A9A5E;
+  --sage-lt:   #E4EFE1;
+  --sage-bd:   #BDD6B5;
+  --gold:      #B8842A;
+  --gold-lt:   #FBF3E2;
+  --border:    rgba(50,46,33,0.10);
+  --radius:    10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+  min-height: 100vh;
+}
+
+/* HEADER */
+.header {
+  background: var(--forest);
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 36px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.header-brand {
+  font-family: 'DM Serif Display', serif;
+  font-size: 17px;
+  color: var(--white);
+  letter-spacing: 0.03em;
+}
+.header-brand span {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-left: 12px;
+  letter-spacing: 0.1em;
+}
+.header-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+}
+.header-meta strong { color: #9ACA8A; font-weight: 500; }
+
+/* PAGE TABS */
+.page-tabs {
+  background: var(--forest);
+  display: flex;
+  padding: 0 36px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.page-tab {
+  padding: 11px 22px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.18s;
+  letter-spacing: 0.03em;
+}
+.page-tab:hover { color: rgba(255,255,255,0.75); }
+.page-tab.active { color: var(--white); border-bottom-color: var(--orange); }
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* LAYOUT */
+.container { max-width: 1200px; margin: 0 auto; padding: 32px 36px 60px; }
+.section { margin-bottom: 44px; }
+.sec-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 19px;
+  color: var(--text);
+  font-weight: 400;
+  margin-bottom: 4px;
+}
+.sec-meta { font-size: 11px; color: var(--muted); margin-bottom: 18px; }
+
+/* KPI */
+.kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
+.kpi {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 18px 14px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--bg-deep); }
+.kpi.kpi-ok::before    { background: var(--sage); }
+.kpi.kpi-warn::before  { background: var(--gold); }
+.kpi.kpi-alert::before { background: var(--orange); }
+.kpi-label { font-size: 10px; color: var(--muted); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px; }
+.kpi-value { font-family: 'DM Serif Display', serif; font-size: 36px; line-height: 1; color: var(--text); }
+.kpi-unit  { font-size: 14px; color: var(--muted); margin-left: 2px; }
+.kpi-sub   { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.kpi-badge {
+  display: inline-block;
+  font-size: 10px;
+  margin-top: 5px;
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+.badge-ok    { background: var(--sage-lt); color: var(--forest); }
+.badge-ng    { background: var(--orange-lt); color: var(--orange); }
+.badge-ref   { background: var(--bg-mid); color: var(--muted); }
+
+/* CHART CARD */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 22px 16px;
+  margin-bottom: 20px;
+}
+.chart-wrap { position: relative; height: 240px; }
+
+/* NEGATIVE NOTE */
+.data-note {
+  background: var(--gold-lt);
+  border: 1px solid #E8D09A;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.data-note strong { color: var(--gold); }
+
+/* NEGATIVE LAYOUT */
+.neg-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.neg-panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.neg-panel-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.neg-panel-head.cleaning { background: var(--orange-lt); border-bottom-color: var(--orange-bd); }
+.neg-panel-head.other    { background: var(--bg-mid); }
+.neg-panel-icon { font-size: 15px; }
+.neg-panel-title { font-size: 13px; font-weight: 500; color: var(--text); }
+.neg-panel-badge {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+.badge-orange { background: var(--orange); color: var(--white); }
+.badge-gray   { background: var(--bg-deep); color: var(--text); }
+
+.neg-cat-list { padding: 8px 10px; }
+.neg-cat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s;
+  margin-bottom: 3px;
+}
+.neg-cat-item:last-child { margin-bottom: 0; }
+.neg-cat-item:hover { background: var(--bg); }
+.neg-cat-item.active-clean { background: var(--orange-lt); }
+.neg-cat-item.active-other { background: var(--bg-mid); }
+.neg-cat-icon { font-size: 14px; flex-shrink: 0; }
+.neg-cat-name { flex: 1; font-size: 12px; color: var(--text); }
+.neg-cat-count { font-size: 11px; color: var(--muted); flex-shrink: 0; min-width: 32px; text-align: right; }
+.neg-cat-bar-wrap { width: 48px; height: 3px; background: var(--bg-mid); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.neg-cat-bar { height: 100%; border-radius: 2px; }
+
+/* DETAIL PANEL */
+.neg-detail {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-height: 400px;
+}
+.neg-detail-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+}
+.neg-detail-head.clean-head { background: var(--orange-lt); border-bottom-color: var(--orange-bd); }
+.neg-detail-head.other-head { background: var(--bg-mid); }
+.neg-detail-title { font-size: 12px; font-weight: 500; color: var(--text); }
+.neg-detail-body { padding: 14px 16px; max-height: 500px; overflow-y: auto; }
+
+/* AI BLOCK */
+.ai-block {
+  background: #F4F0FB;
+  border: 1px solid #D8C8F4;
+  border-radius: 7px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ai-badge {
+  width: 20px; height: 20px;
+  background: #7050B8;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: white;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.ai-text { font-size: 11px; color: #3A2870; line-height: 1.65; }
+.ai-loading { font-style: italic; color: var(--muted); }
+.spinner {
+  display: inline-block; width: 11px; height: 11px;
+  border: 2px solid rgba(112,80,184,0.25);
+  border-top-color: #7050B8;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 5px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.comment-list { display: flex; flex-direction: column; }
+.comment-item { padding: 8px 0; border-bottom: 1px solid var(--bg-mid); }
+.comment-item:last-child { border-bottom: none; }
+.comment-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; flex-wrap: wrap; }
+.c-site  { font-size: 10px; color: var(--orange); background: var(--orange-lt); padding: 1px 7px; border-radius: 99px; }
+.c-stars { font-size: 10px; color: var(--gold); }
+.c-date  { font-size: 10px; color: var(--muted); }
+.c-text  { font-size: 11px; color: var(--muted); line-height: 1.65; }
+
+/* SITE TABLE */
+.site-table-wrap {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.site-table-head {
+  display: grid;
+  grid-template-columns: 30px 1fr 62px 110px 130px 80px;
+  padding: 9px 16px;
+  background: var(--bg-mid);
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  gap: 4px;
+}
+.site-row-wrap { border-bottom: 1px solid var(--bg-mid); }
+.site-row-wrap:last-child { border-bottom: none; }
+.site-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 62px 110px 130px 80px;
+  padding: 10px 16px;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.1s;
+  gap: 4px;
+}
+.site-row:hover { background: var(--bg); }
+.site-rank { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-align: center; }
+.site-name-txt { font-size: 13px; color: var(--text); }
+.site-count { font-size: 11px; color: var(--muted); text-align: right; }
+.site-score { font-family: 'DM Serif Display', serif; font-size: 18px; text-align: right; }
+.site-bar-cell { display: flex; align-items: center; gap: 6px; }
+.site-bar-wrap { flex: 1; height: 4px; background: var(--bg-deep); border-radius: 2px; overflow: hidden; }
+.site-bar-inner { height: 100%; border-radius: 2px; }
+.site-tag-cell { text-align: center; }
+.site-tag { font-size: 10px; padding: 2px 9px; border-radius: 99px; display: inline-block; white-space: nowrap; }
+.tag-danger { background: var(--orange-lt); color: var(--orange); }
+.tag-warn   { background: var(--gold-lt); color: var(--gold); }
+.tag-ok     { background: var(--sage-lt); color: var(--forest); }
+.tag-great  { background: #D4ECC8; color: #1A4810; }
+.tag-ref    { background: var(--bg-mid); color: var(--muted); font-style: italic; }
+
+.site-expand {
+  display: none;
+  padding: 0 16px 14px 46px;
+  background: var(--orange-lt);
+  border-top: 1px solid var(--orange-bd);
+}
+.site-expand.open { display: block; }
+.expand-title {
+  font-size: 10px; color: var(--orange); letter-spacing: 0.08em;
+  text-transform: uppercase; font-weight: 500;
+  padding-top: 10px; margin-bottom: 6px;
+}
+.expand-ai {
+  background: #F4F0FB; border: 1px solid #D8C8F4;
+  border-radius: 6px; padding: 8px 10px;
+  display: flex; gap: 8px; margin-bottom: 8px;
+}
+.expand-comment {
+  font-size: 11px; color: var(--muted); line-height: 1.65;
+  padding: 5px 0; border-bottom: 1px solid var(--orange-bd);
+  display: flex; gap: 8px;
+}
+.expand-comment:last-child { border-bottom: none; }
+.ec-star { color: var(--orange); flex-shrink: 0; font-size: 10px; margin-top: 2px; }
+.ec-date { color: var(--muted); font-size: 10px; flex-shrink: 0; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    SANU 2nd Home
+    <span>AREA MANAGEMENT DASHBOARD</span>
+  </div>
+  <div class="header-meta">最終更新：<strong id="lastUpdated">—</strong></div>
+</div>
+
+<div class="page-tabs">
+  <div class="page-tab active" onclick="switchPage('trend',this)">📈 スコア推移・ネガティブ傾向</div>
+  <div class="page-tab" onclick="switchPage('sites',this)">🏠 拠点別スコア</div>
+</div>
+
+<!-- ===== PAGE 1 ===== -->
+<div class="page active" id="page-trend">
+<div class="container">
+
+  <div class="section">
+    <div class="kpi-row">
+      <div class="kpi" id="kpiAvgCard">
+        <div class="kpi-label">直近4週間 平均スコア</div>
+        <div class="kpi-value" id="kpiAvg">—<span class="kpi-unit"> / 5</span></div>
+        <div class="kpi-sub">直近4週（0点除く有効スコア）</div>
+        <div class="kpi-badge" id="kpiAvgBadge">目標：4.75以上</div>
+      </div>
+      <div class="kpi" id="kpiCleanCard">
+        <div class="kpi-label">清掃 ネガティブ率（今月）</div>
+        <div class="kpi-value" id="kpiClean">—<span class="kpi-unit">%</span></div>
+        <div class="kpi-sub" id="kpiCleanSub">清掃関連ネガ / 総レビュー数</div>
+      </div>
+      <div class="kpi kpi-warn" id="kpiNegCard">
+        <div class="kpi-label">全体 ネガティブ率（今月）</div>
+        <div class="kpi-value" id="kpiNeg">—<span class="kpi-unit">%</span></div>
+        <div class="kpi-sub" id="kpiNegSub">★1〜3点 / 総レビュー数</div>
+        <div class="kpi-badge badge-ref">参考値</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">週次スコア推移</div>
+    <div class="sec-meta">直近17週 / 平均評価スコア（0点除く） / 破線：目標ライン 4.75</div>
+    <div class="card" style="padding-bottom:12px">
+      <div class="chart-wrap">
+        <canvas id="weeklyChart" role="img" aria-label="週次平均スコア推移">週次スコア推移</canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">今月のネガティブ傾向</div>
+    <div class="sec-meta" id="negMeta">2026年5月 / ★1〜3点コメントよりキーワード集計 / カテゴリをクリックするとAI要約と代表コメントが右に表示されます</div>
+
+    <div class="data-note">
+      <strong>📊 集計について</strong>　1コメントが複数キーワードを含む場合は各カテゴリにカウントされるため、カテゴリ件数の合計はネガティブコメント総数を上回ります。「その他」は清掃・設備・CSなどのキーワードを含まないコメントの件数です。
+    </div>
+
+    <div class="neg-cols">
+      <div>
+        <div class="neg-panel" style="margin-bottom:14px">
+          <div class="neg-panel-head cleaning">
+            <div class="neg-panel-icon">🧹</div>
+            <div class="neg-panel-title">清掃カテゴリ</div>
+            <div class="neg-panel-badge badge-orange" id="cleanBadge">—件</div>
+          </div>
+          <div class="neg-cat-list" id="cleanCatList"></div>
+        </div>
+        <div class="neg-panel">
+          <div class="neg-panel-head other">
+            <div class="neg-panel-icon">⚙️</div>
+            <div class="neg-panel-title">その他カテゴリ</div>
+            <div class="neg-panel-badge badge-gray" id="otherBadge">—件</div>
+          </div>
+          <div class="neg-cat-list" id="otherCatList"></div>
+        </div>
+      </div>
+
+      <div class="neg-detail" id="negDetail">
+        <div class="neg-detail-head other-head" id="detailHead">
+          <span class="neg-detail-title" id="detailTitle">← カテゴリを選択してください</span>
+        </div>
+        <div class="neg-detail-body" id="detailBody">
+          <div style="font-size:12px;color:var(--muted);padding:8px 0">左のカテゴリをクリックすると詳細とAI要約が表示されます</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ===== PAGE 2 ===== -->
+<div class="page" id="page-sites">
+<div class="container">
+
+  <div class="section">
+    <div class="sec-title">拠点別スコア</div>
+    <div class="sec-meta">直近30日間 / スコア昇順 / 「要対応」「要注意」拠点はクリックで直近コメント・AI要約を展開</div>
+    <div class="site-table-wrap">
+      <div class="site-table-head">
+        <span>#</span>
+        <span>拠点名</span>
+        <span style="text-align:right">件数</span>
+        <span style="text-align:right">スコア</span>
+        <span style="padding:0 6px">バー</span>
+        <span style="text-align:center">評価</span>
+      </div>
+      <div id="siteTableBody">読み込み中...</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+const DATA = __DATA_PLACEHOLDER__;
+
+// INIT
+document.getElementById('lastUpdated').textContent = DATA.lastUpdated;
+
+// KPI
+const {avgScore,cleanNeg,totalNeg,totalReviews} = DATA.kpi;
+const cleanRate = (cleanNeg/totalReviews*100).toFixed(1);
+const negRate   = (totalNeg/totalReviews*100).toFixed(1);
+const avgOk = avgScore >= 4.75;
+const kpiAvgCard = document.getElementById('kpiAvgCard');
+kpiAvgCard.className = `kpi ${avgOk?'kpi-ok':'kpi-alert'}`;
+document.getElementById('kpiAvg').innerHTML = avgScore+'<span class="kpi-unit"> / 5</span>';
+const badge = document.getElementById('kpiAvgBadge');
+badge.className = `kpi-badge ${avgOk?'badge-ok':'badge-ng'}`;
+badge.textContent = avgOk ? '✓ 目標達成（4.75以上）' : '▼ 目標未達（4.75以上）';
+document.getElementById('kpiClean').innerHTML = cleanRate+'<span class="kpi-unit">%</span>';
+document.getElementById('kpiCleanSub').textContent = `清掃関連ネガ ${cleanNeg}件 / 総レビュー ${totalReviews.toLocaleString()}件`;
+document.getElementById('kpiNeg').innerHTML = negRate+'<span class="kpi-unit">%</span>';
+document.getElementById('kpiNegSub').textContent = `★1〜3点 ${totalNeg}件 / 総レビュー ${totalReviews.toLocaleString()}件`;
+
+// Weekly chart
+new Chart(document.getElementById('weeklyChart'),{
+  type:'line',
+  data:{
+    labels: DATA.weekly.map(d=>d.w),
+    datasets:[
+      {
+        label:'平均スコア',
+        data: DATA.weekly.map(d=>d.s),
+        borderColor:'#2C4A2A',
+        backgroundColor:'rgba(44,74,42,0.05)',
+        borderWidth:2.5,
+        pointRadius: DATA.weekly.map(d=>d.s<4.62?5:3),
+        pointBackgroundColor: DATA.weekly.map(d=>d.s>=4.75?'#6A9A5E':d.s<4.62?'#EC572E':'#B8842A'),
+        pointBorderColor:'transparent',
+        tension:0.35, fill:true,
+      },
+      {
+        label:'目標（4.75）',
+        data: DATA.weekly.map(()=>4.75),
+        borderColor:'#EC572E',
+        borderWidth:1.5,
+        borderDash:[5,4],
+        pointRadius:0,
+        fill:false,
+        tension:0,
+      }
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:{display:true,position:'top',labels:{font:{size:11},color:'#6A6250',boxWidth:20}},
+      tooltip:{callbacks:{label:c=>c.datasetIndex===0?` ${c.raw.toFixed(2)}点（${DATA.weekly[c.dataIndex].n.toLocaleString()}件）`:` 目標 4.75`}}
+    },
+    scales:{
+      x:{grid:{display:false},ticks:{font:{size:10,family:"'JetBrains Mono',monospace"},color:'#6A6250',maxRotation:45}},
+      y:{min:4.4,max:4.9,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:10},color:'#6A6250',callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+
+// NEG CATEGORIES
+const allCats = [...DATA.negCleaning,...DATA.negOther];
+const cleanTotal = DATA.negCleaning.reduce((a,c)=>a+c.count,0);
+const otherTotal = DATA.negOther.reduce((a,c)=>a+c.count,0);
+document.getElementById('cleanBadge').textContent = `${cleanTotal}件`;
+document.getElementById('otherBadge').textContent = `${otherTotal}件`;
+const maxCount = Math.max(...allCats.map(c=>c.count));
+
+function renderCats(elId, cats, isClean) {
+  document.getElementById(elId).innerHTML = cats.map(cat=>`
+    <div class="neg-cat-item" id="ci-${cat.id}" onclick="selectCat('${cat.id}',${isClean})">
+      <div class="neg-cat-icon">${cat.icon}</div>
+      <div class="neg-cat-name">${cat.name}</div>
+      <div class="neg-cat-count">${cat.count}件</div>
+      <div class="neg-cat-bar-wrap">
+        <div class="neg-cat-bar" style="width:${maxCount>0?Math.round(cat.count/maxCount*100):0}%;background:${isClean?'#EC572E':'#6A6250'}"></div>
+      </div>
+    </div>`).join('');
+}
+renderCats('cleanCatList', DATA.negCleaning, true);
+renderCats('otherCatList', DATA.negOther, false);
+
+const aiCache = {};
+function selectCat(id, isClean) {
+  document.querySelectorAll('.neg-cat-item').forEach(el=>el.classList.remove('active-clean','active-other'));
+  const item = document.getElementById(`ci-${id}`);
+  if(item) item.classList.add(isClean?'active-clean':'active-other');
+  const cat = allCats.find(c=>c.id===id);
+  if(!cat) return;
+  const head = document.getElementById('detailHead');
+  head.className = `neg-detail-head ${isClean?'clean-head':'other-head'}`;
+  document.getElementById('detailTitle').textContent = `${cat.icon} ${cat.name}（${cat.count}件）`;
+  const commHtml = cat.comments.map(c=>`
+    <div class="comment-item">
+      <div class="comment-meta">
+        <span class="c-site">${c.site}</span>
+        <span class="c-stars">${'★'.repeat(c.r)}${'☆'.repeat(5-c.r)}</span>
+        <span class="c-date">${c.d}</span>
+      </div>
+      <div class="c-text">${c.t}</div>
+    </div>`).join('');
+  document.getElementById('detailBody').innerHTML = `
+    <div class="ai-block" id="ai-${id}">
+      <div class="ai-badge">AI</div>
+      <div class="ai-text ai-loading" id="ait-${id}"><span class="spinner"></span>分析中...</div>
+    </div>
+    <div class="comment-list">${commHtml}</div>`;
+  if(aiCache[id]){
+    const t=document.getElementById(`ait-${id}`);
+    if(t){t.classList.remove('ai-loading');t.textContent=aiCache[id];}
+    return;
+  }
+  callAI(id, cat);
+}
+
+async function callAI(id, cat) {
+  const t = document.getElementById(`ait-${id}`);
+  const ctext = cat.comments.map(c=>`【${c.site}・★${c.r}・${c.d}】${c.t}`).join('\n');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:`あなたはSANU 2nd Homeのエリアマネジメントチーム向けのレビュー分析アシスタントです。
+ゲストの低評価レビューを分析し、エリマネチームが翌週の運営改善に活用できる要約を3〜4文の日本語で提供してください。
+・主な問題の傾向と特に注目すべき拠点
+・優先すべき対応アクション（1〜2点）
+自然な文章で80〜120文字程度にまとめてください。`,
+        messages:[{role:'user',content:`「${cat.name}」の直近ネガティブレビュー（${cat.count}件中の代表例）:\n${ctext}`}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '要約を生成できませんでした';
+    aiCache[id]=text;
+    if(document.getElementById(`ait-${id}`)){
+      document.getElementById(`ait-${id}`).classList.remove('ai-loading');
+      document.getElementById(`ait-${id}`).textContent=text;
+    }
+  } catch(e){
+    if(t){t.classList.remove('ai-loading');t.textContent='AI要約の取得に失敗しました。';}
+  }
+}
+selectCat('c1', true);
+
+// SITE TABLE
+const siteAiCache = {};
+function sCol(s){return s<4.4?'#EC572E':s<4.6?'#B8842A':s<4.75?'#2C4A2A':'#1A4810';}
+function bCol(s){return s<4.4?'#EC572E':s<4.6?'#B8842A':'#6A9A5E';}
+function sTag(s,n){
+  if(n<=4)   return{l:'参考値',c:'tag-ref'};
+  if(s<4.4)  return{l:'要対応',c:'tag-danger'};
+  if(s<4.6)  return{l:'要注意',c:'tag-warn'};
+  if(s<4.75) return{l:'標準',  c:'tag-ok'};
+  return          {l:'高評価',c:'tag-great'};
+}
+const tbody = document.getElementById('siteTableBody');
+tbody.innerHTML = DATA.sites.map((site,i)=>{
+  const pct = Math.round(((site.s-3.5)/1.5)*100);
+  const tag = sTag(site.s,site.n);
+  const isLow = site.s<4.6 && site.n>4;
+  const commHtml = site.comments.length
+    ? site.comments.map(c=>`<div class="expand-comment"><span class="ec-star">★${c.r}</span><span>${c.t}</span><span class="ec-date" style="margin-left:auto">${c.d}</span></div>`).join('')
+    : '<div class="expand-comment" style="color:var(--muted)">直近30日間の低評価コメントなし</div>';
+  return `
+    <div class="site-row-wrap">
+      <div class="site-row" onclick="${isLow?`toggleSite('sx-${i}',${i})`:''}">
+        <div class="site-rank">${i+1}</div>
+        <div class="site-name-txt">${site.name}</div>
+        <div class="site-count">${site.n}件</div>
+        <div class="site-score" style="color:${sCol(site.s)}">${site.s.toFixed(2)}</div>
+        <div class="site-bar-cell"><div class="site-bar-wrap"><div class="site-bar-inner" style="width:${pct}%;background:${bCol(site.s)}"></div></div></div>
+        <div class="site-tag-cell"><span class="site-tag ${tag.c}">${tag.l}</span></div>
+      </div>
+      ${isLow?`
+      <div class="site-expand" id="sx-${i}">
+        <div class="expand-title">直近の低評価コメント</div>
+        <div class="expand-ai" id="sai-b-${i}">
+          <div class="ai-badge" style="font-size:10px">AI</div>
+          <div class="ai-text ai-loading" id="sai-t-${i}"><span class="spinner"></span>分析中...</div>
+        </div>
+        ${commHtml}
+      </div>`:''}
+    </div>`;
+}).join('');
+
+function toggleSite(id,idx){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const opening=!el.classList.contains('open');
+  el.classList.toggle('open');
+  if(opening){
+    if(!siteAiCache[idx]) callSiteAI(idx);
+    else {
+      const t=document.getElementById(`sai-t-${idx}`);
+      if(t){t.classList.remove('ai-loading');t.textContent=siteAiCache[idx];}
+    }
+  }
+}
+
+async function callSiteAI(idx){
+  const site=DATA.sites[idx];
+  const t=document.getElementById(`sai-t-${idx}`);
+  if(!t||!site.comments.length){if(t){t.classList.remove('ai-loading');t.textContent='コメントがありません';}return;}
+  const ctext=site.comments.map(c=>`【★${c.r}・${c.d}】${c.t}`).join('\n');
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:`あなたはSANU 2nd Homeのエリアマネジメントチーム向けのレビュー分析アシスタントです。
+特定拠点の低評価コメントを分析し、エリマネチームが取るべき改善アクションを2〜3文の自然な日本語で提案してください。
+具体的で実行可能なアクションを含め、70〜100文字程度にまとめてください。`,
+        messages:[{role:'user',content:`「${site.name}」の直近低評価コメント:\n${ctext}`}]
+      })
+    });
+    const data=await res.json();
+    const text=data.content?.[0]?.text||'要約を生成できませんでした';
+    siteAiCache[idx]=text;
+    const t2=document.getElementById(`sai-t-${idx}`);
+    if(t2){t2.classList.remove('ai-loading');t2.textContent=text;}
+  }catch(e){
+    const t2=document.getElementById(`sai-t-${idx}`);
+    if(t2){t2.classList.remove('ai-loading');t2.textContent='AI要約の取得に失敗しました。';}
+  }
+}
+
+function switchPage(id,el){
+  document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`page-${id}`).classList.add('active');
+}
+</script>
+</body>
+</html>
