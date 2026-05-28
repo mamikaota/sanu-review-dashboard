@@ -303,6 +303,15 @@ body {
 .expand-comment:last-child { border-bottom: none; }
 .ec-star { color: var(--orange); flex-shrink: 0; font-size: 10px; margin-top: 2px; }
 .ec-date { color: var(--muted); font-size: 10px; flex-shrink: 0; white-space: nowrap; }
+
+/* ISSUE CHART */
+.issue-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--bg-mid); }
+.issue-row:last-child { border-bottom: none; }
+.issue-label { width: 140px; font-size: 12px; color: var(--text); flex-shrink: 0; }
+.issue-bar-wrap { flex: 1; height: 16px; background: var(--bg-mid); border-radius: 3px; overflow: hidden; }
+.issue-bar-inner { height: 100%; border-radius: 3px; background: var(--forest); transition: width 0.4s; }
+.issue-count { width: 50px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--muted); text-align: right; flex-shrink: 0; }
+.issue-clean .issue-bar-inner { background: var(--orange); }
 </style>
 </head>
 <body>
@@ -333,9 +342,9 @@ body {
         <div class="kpi-badge" id="kpiAvgBadge">目標：4.75以上</div>
       </div>
       <div class="kpi" id="kpiCleanCard">
-        <div class="kpi-label">清掃 ネガティブ率（今月）</div>
+        <div class="kpi-label">清掃品質 指摘率（今月）</div>
         <div class="kpi-value" id="kpiClean">—<span class="kpi-unit">%</span></div>
-        <div class="kpi-sub" id="kpiCleanSub">清掃関連ネガ / 総レビュー数</div>
+        <div class="kpi-sub" id="kpiCleanSub">cleanliness_issue 選択数 / 総回答数</div>
       </div>
       <div class="kpi kpi-warn" id="kpiNegCard">
         <div class="kpi-label">全体 ネガティブ率（今月）</div>
@@ -353,6 +362,14 @@ body {
       <div class="chart-wrap">
         <canvas id="weeklyChart" role="img" aria-label="週次平均スコア推移">週次スコア推移</canvas>
       </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">滞在中に気になった点（選択式）</div>
+    <div class="sec-meta" id="issueMeta">今月 / チェックアウト時の選択式回答 / 複数選択可のため合計は総回答数を超える場合があります</div>
+    <div class="card" style="padding:20px 24px">
+      <div id="issueChart"></div>
     </div>
   </div>
 
@@ -438,8 +455,8 @@ document.getElementById('kpiAvg').innerHTML = avgScore+'<span class="kpi-unit"> 
 const badge = document.getElementById('kpiAvgBadge');
 badge.className = `kpi-badge ${avgOk?'badge-ok':'badge-ng'}`;
 badge.textContent = avgOk ? '✓ 目標達成（4.75以上）' : '▼ 目標未達（4.75以上）';
-document.getElementById('kpiClean').innerHTML = cleanRate+'<span class="kpi-unit">%</span>';
-document.getElementById('kpiCleanSub').textContent = `清掃関連ネガ ${cleanNeg}件 / 総レビュー ${totalReviews.toLocaleString()}件`;
+document.getElementById('kpiClean').innerHTML = DATA.kpi.cleanRate+'<span class="kpi-unit">%</span>';
+document.getElementById('kpiCleanSub').textContent = `清掃品質指摘 ${DATA.kpi.cleanNeg}件 / 総回答 ${DATA.kpi.totalResponses.toLocaleString()}件`;
 document.getElementById('kpiNeg').innerHTML = negRate+'<span class="kpi-unit">%</span>';
 document.getElementById('kpiNegSub').textContent = `★1〜3点 ${totalNeg}件 / 総レビュー ${totalReviews.toLocaleString()}件`;
 
@@ -577,6 +594,20 @@ function toggleSite(id,idx){
 
 }
 
+
+
+// ISSUE CHART
+(function(){
+  const max = Math.max(...DATA.issueList.map(d=>d.count), 1);
+  document.getElementById('issueChart').innerHTML = DATA.issueList.map(d=>`
+    <div class="issue-row ${d.key==='cleanliness_issue'?'issue-clean':''}">
+      <div class="issue-label">${d.label}</div>
+      <div class="issue-bar-wrap">
+        <div class="issue-bar-inner" style="width:${Math.round(d.count/max*100)}%"></div>
+      </div>
+      <div class="issue-count">${d.count}件</div>
+    </div>`).join('');
+})();
 
 function switchPage(id,el){
   document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
