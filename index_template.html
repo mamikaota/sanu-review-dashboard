@@ -224,38 +224,7 @@ body {
 .neg-detail-title { font-size: 12px; font-weight: 500; color: var(--text); }
 .neg-detail-body { padding: 14px 16px; max-height: 500px; overflow-y: auto; }
 
-/* AI BLOCK */
-.ai-block {
-  background: #F4F0FB;
-  border: 1px solid #D8C8F4;
-  border-radius: 7px;
-  padding: 10px 12px;
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.ai-badge {
-  width: 20px; height: 20px;
-  background: #7050B8;
-  border-radius: 4px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: white;
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-.ai-text { font-size: 11px; color: #3A2870; line-height: 1.65; }
-.ai-loading { font-style: italic; color: var(--muted); }
-.spinner {
-  display: inline-block; width: 11px; height: 11px;
-  border: 2px solid rgba(112,80,184,0.25);
-  border-top-color: #7050B8;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  vertical-align: middle;
-  margin-right: 5px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+
 
 .comment-list { display: flex; flex-direction: column; }
 .comment-item { padding: 8px 0; border-bottom: 1px solid var(--bg-mid); }
@@ -325,11 +294,7 @@ body {
   text-transform: uppercase; font-weight: 500;
   padding-top: 10px; margin-bottom: 6px;
 }
-.expand-ai {
-  background: #F4F0FB; border: 1px solid #D8C8F4;
-  border-radius: 6px; padding: 8px 10px;
-  display: flex; gap: 8px; margin-bottom: 8px;
-}
+
 .expand-comment {
   font-size: 11px; color: var(--muted); line-height: 1.65;
   padding: 5px 0; border-bottom: 1px solid var(--orange-bd);
@@ -542,7 +507,7 @@ function renderCats(elId, cats, isClean) {
 renderCats('cleanCatList', DATA.negCleaning, true);
 renderCats('otherCatList', DATA.negOther, false);
 
-const aiCache = {};
+
 function selectCat(id, isClean) {
   document.querySelectorAll('.neg-cat-item').forEach(el=>el.classList.remove('active-clean','active-other'));
   const item = document.getElementById(`ci-${id}`);
@@ -562,52 +527,14 @@ function selectCat(id, isClean) {
       <div class="c-text">${c.t}</div>
     </div>`).join('');
   document.getElementById('detailBody').innerHTML = `
-    <div class="ai-block" id="ai-${id}">
-      <div class="ai-badge">AI</div>
-      <div class="ai-text ai-loading" id="ait-${id}"><span class="spinner"></span>分析中...</div>
-    </div>
     <div class="comment-list">${commHtml}</div>`;
-  if(aiCache[id]){
-    const t=document.getElementById(`ait-${id}`);
-    if(t){t.classList.remove('ai-loading');t.textContent=aiCache[id];}
-    return;
-  }
-  callAI(id, cat);
+
 }
 
-async function callAI(id, cat) {
-  const t = document.getElementById(`ait-${id}`);
-  const ctext = cat.comments.map(c=>`【${c.site}・★${c.r}・${c.d}】${c.t}`).join('\n');
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        system:`あなたはSANU 2nd Homeのエリアマネジメントチーム向けのレビュー分析アシスタントです。
-ゲストの低評価レビューを分析し、エリマネチームが翌週の運営改善に活用できる要約を3〜4文の日本語で提供してください。
-・主な問題の傾向と特に注目すべき拠点
-・優先すべき対応アクション（1〜2点）
-自然な文章で80〜120文字程度にまとめてください。`,
-        messages:[{role:'user',content:`「${cat.name}」の直近ネガティブレビュー（${cat.count}件中の代表例）:\n${ctext}`}]
-      })
-    });
-    const data = await res.json();
-    const text = data.content?.[0]?.text || '要約を生成できませんでした';
-    aiCache[id]=text;
-    if(document.getElementById(`ait-${id}`)){
-      document.getElementById(`ait-${id}`).classList.remove('ai-loading');
-      document.getElementById(`ait-${id}`).textContent=text;
-    }
-  } catch(e){
-    if(t){t.classList.remove('ai-loading');t.textContent='AI要約の取得に失敗しました。';}
-  }
-}
 selectCat('c1', true);
 
 // SITE TABLE
-const siteAiCache = {};
+
 function sCol(s){return s<4.4?'#EC572E':s<4.6?'#B8842A':s<4.75?'#2C4A2A':'#1A4810';}
 function bCol(s){return s<4.4?'#EC572E':s<4.6?'#B8842A':'#6A9A5E';}
 function sTag(s,n){
@@ -627,7 +554,7 @@ tbody.innerHTML = DATA.sites.map((site,i)=>{
     : '<div class="expand-comment" style="color:var(--muted)">直近30日間の低評価コメントなし</div>';
   return `
     <div class="site-row-wrap">
-      <div class="site-row" onclick="${isLow?`toggleSite('sx-${i}',${i})`:''}">
+      <div class="site-row" onclick="toggleSite('sx-${i}',${i})" style="cursor:pointer">
         <div class="site-rank">${i+1}</div>
         <div class="site-name-txt">${site.name}</div>
         <div class="site-count">${site.n}件</div>
@@ -635,15 +562,10 @@ tbody.innerHTML = DATA.sites.map((site,i)=>{
         <div class="site-bar-cell"><div class="site-bar-wrap"><div class="site-bar-inner" style="width:${pct}%;background:${bCol(site.s)}"></div></div></div>
         <div class="site-tag-cell"><span class="site-tag ${tag.c}">${tag.l}</span></div>
       </div>
-      ${isLow?`
       <div class="site-expand" id="sx-${i}">
-        <div class="expand-title">直近の低評価コメント</div>
-        <div class="expand-ai" id="sai-b-${i}">
-          <div class="ai-badge" style="font-size:10px">AI</div>
-          <div class="ai-text ai-loading" id="sai-t-${i}"><span class="spinner"></span>分析中...</div>
-        </div>
+        <div class="expand-title">直近のコメント</div>
         ${commHtml}
-      </div>`:''}
+      </div>
     </div>`;
 }).join('');
 
@@ -652,43 +574,9 @@ function toggleSite(id,idx){
   if(!el) return;
   const opening=!el.classList.contains('open');
   el.classList.toggle('open');
-  if(opening){
-    if(!siteAiCache[idx]) callSiteAI(idx);
-    else {
-      const t=document.getElementById(`sai-t-${idx}`);
-      if(t){t.classList.remove('ai-loading');t.textContent=siteAiCache[idx];}
-    }
-  }
+
 }
 
-async function callSiteAI(idx){
-  const site=DATA.sites[idx];
-  const t=document.getElementById(`sai-t-${idx}`);
-  if(!t||!site.comments.length){if(t){t.classList.remove('ai-loading');t.textContent='コメントがありません';}return;}
-  const ctext=site.comments.map(c=>`【★${c.r}・${c.d}】${c.t}`).join('\n');
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        system:`あなたはSANU 2nd Homeのエリアマネジメントチーム向けのレビュー分析アシスタントです。
-特定拠点の低評価コメントを分析し、エリマネチームが取るべき改善アクションを2〜3文の自然な日本語で提案してください。
-具体的で実行可能なアクションを含め、70〜100文字程度にまとめてください。`,
-        messages:[{role:'user',content:`「${site.name}」の直近低評価コメント:\n${ctext}`}]
-      })
-    });
-    const data=await res.json();
-    const text=data.content?.[0]?.text||'要約を生成できませんでした';
-    siteAiCache[idx]=text;
-    const t2=document.getElementById(`sai-t-${idx}`);
-    if(t2){t2.classList.remove('ai-loading');t2.textContent=text;}
-  }catch(e){
-    const t2=document.getElementById(`sai-t-${idx}`);
-    if(t2){t2.classList.remove('ai-loading');t2.textContent='AI要約の取得に失敗しました。';}
-  }
-}
 
 function switchPage(id,el){
   document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
