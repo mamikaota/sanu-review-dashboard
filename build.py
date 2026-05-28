@@ -57,7 +57,7 @@ ORDER BY avg_rating ASC
 """)
 sites_rows = cur.fetchall()
 
-# ④ ネガティブコメント（今月、★1〜3）
+# ④ 全コメント（今月、★1〜5）※全拠点表示のため全スコア取得
 cur.execute("""
 SELECT
   a.SITE_NAME,
@@ -69,13 +69,12 @@ JOIN PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS res
   ON r.ACCOMMODATION_RESERVATION_ID = res.ACCOMMODATION_RESERVATION_ID
 JOIN PRD_ANALYTICS.CORES.DIM__ACCOMMODATIONS a
   ON res.ACCOMMODATION_ID = a.ACCOMMODATION_ID
-WHERE r.CREATED_AT >= DATE_TRUNC('month', CURRENT_DATE())
-  AND r.RATING BETWEEN 1 AND 3
+WHERE r.CREATED_AT >= DATEADD('day', -30, CURRENT_TIMESTAMP())
   AND r.COMMENT IS NOT NULL AND r.COMMENT != ''
 ORDER BY r.CREATED_AT DESC
-LIMIT 200
+LIMIT 500
 """)
-neg_rows = cur.fetchall()
+all_comment_rows = cur.fetchall()
 
 cur.close()
 conn.close()
@@ -91,32 +90,34 @@ weekly = [{"w": str(r[0])[5:10].lstrip("0").replace("-", "/"), "n": r[1], "s": f
 # 拠点リスト
 sites = [{"name": r[0], "n": r[1], "s": float(r[2] or 0), "comments": []} for r in sites_rows]
 
-# ネガコメを拠点に紐付け
-neg_by_site = {}
-for r in neg_rows:
+# コメントを拠点に紐付け（全スコア、直近5件）
+comments_by_site = {}
+for r in all_comment_rows:
     site = r[0]
-    if site not in neg_by_site:
-        neg_by_site[site] = []
-    neg_by_site[site].append({"r": r[1], "t": (r[2] or "")[:100], "d": r[3]})
+    if site not in comments_by_site:
+        comments_by_site[site] = []
+    if len(comments_by_site[site]) < 5:
+        comments_by_site[site].append({"r": r[1], "t": (r[2] or "")[:100], "d": r[3]})
 
 for site in sites:
-    site["comments"] = neg_by_site.get(site["name"], [])[:5]
+    site["comments"] = comments_by_site.get(site["name"], [])
 
 # ネガカテゴリ（キーワードマッチング）
+neg_rows = [r for r in all_comment_rows if r[1] and r[1] <= 3]
 categories_clean = [
-    {"id": "c1", "icon": "🧹", "name": "清掃品質（汚れ残存）",    "keywords": ["清掃", "汚", "掃除", "ザラザラ", "汚れ"]},
+    {"id": "c1", "icon": "🧹", "name": "清掃品質（汚れ残存）", "keywords": ["清掃", "汚", "掃除", "ザラザラ", "汚れ"]},
 ]
 categories_other = [
-    {"id": "o1", "icon": "🐛", "name": "害虫・虫",               "keywords": ["虫", "ムカデ", "蜂", "アリ", "蜘蛛", "ゴキブリ"]},
-    {"id": "o2", "icon": "🔧", "name": "設備・備品不具合",        "keywords": ["故障", "壊れ", "動かない", "不具合", "水漏れ", "動作"]},
-    {"id": "o3", "icon": "📞", "name": "CS対応",                  "keywords": ["CS", "コールセンター", "電話", "対応", "つながらない"]},
-    {"id": "o4", "icon": "🔊", "name": "騒音・隣室",              "keywords": ["騒音", "音", "隣", "うるさい", "響く"]},
-    {"id": "o5", "icon": "😴", "name": "におい",                  "keywords": ["におい", "臭い", "臭"]},
+    {"id": "o1", "icon": "🐛", "name": "害虫・虫",          "keywords": ["虫", "ムカデ", "蜂", "アリ", "蜘蛛", "ゴキブリ"]},
+    {"id": "o2", "icon": "🔧", "name": "設備・備品不具合",   "keywords": ["故障", "壊れ", "動かない", "不具合", "水漏れ", "動作"]},
+    {"id": "o3", "icon": "📞", "name": "CS対応",             "keywords": ["CS", "コールセンター", "電話", "対応", "つながらない"]},
+    {"id": "o4", "icon": "🔊", "name": "騒音・隣室",         "keywords": ["騒音", "音", "隣", "うるさい", "響く"]},
+    {"id": "o5", "icon": "😴", "name": "におい",             "keywords": ["におい", "臭い", "臭"]},
 ]
 
-def build_cat(cat_def, neg_rows):
+def build_cat(cat_def, rows):
     matched = []
-    for r in neg_rows:
+    for r in rows:
         text = (r[2] or "")
         if any(kw in text for kw in cat_def["keywords"]):
             matched.append({"site": r[0], "r": r[1], "t": text[:100], "d": r[3]})
@@ -131,8 +132,12 @@ def build_cat(cat_def, neg_rows):
 neg_cleaning = [build_cat(c, neg_rows) for c in categories_clean]
 neg_other    = [build_cat(c, neg_rows) for c in categories_other]
 
+# 最終更新：時刻も含める
+now = datetime.now()
+last_updated = now.strftime("%Y/%m/%d %H:%M")
+
 data = {
-    "lastUpdated": datetime.now().strftime("%Y/%m/%d"),
+    "lastUpdated": last_updated,
     "kpi": {
         "avgScore": avg_score,
         "cleanNeg": clean_neg,
@@ -154,4 +159,4 @@ html = html.replace('__DATA_PLACEHOLDER__', json.dumps(data, ensure_ascii=False)
 with open('index.html', 'w', encoding='utf-8') as f:
     f.write(html)
 
-print(f"✅ build完了: {data['lastUpdated']} / 総レビュー {total_reviews}件")
+print(f"✅ build完了: {last_updated} / 総レビュー {total_reviews}件")
