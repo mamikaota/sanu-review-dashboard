@@ -113,7 +113,7 @@ for row in selection_rows:
     ans = row[0]
     cnt = row[1]
     total_responses += cnt
-    keys = re.findall(r'[a-z]+_?[a-z]+', ans)
+    keys = re.findall(r'[a-z_]+', ans)
     has_problem = any(k in issue_counts and k != 'no_issue' for k in keys)
     if has_problem:
         has_issue_count += cnt
