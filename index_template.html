@@ -344,12 +344,12 @@ body {
       <div class="kpi" id="kpiCleanCard">
         <div class="kpi-label">清掃品質 指摘率（今月）</div>
         <div class="kpi-value" id="kpiClean">—<span class="kpi-unit">%</span></div>
-        <div class="kpi-sub" id="kpiCleanSub">cleanliness_issue 選択数 / 総回答数</div>
+        <div class="kpi-sub" id="kpiCleanSub">清掃不足ありの選択数 / 総回答数</div>
       </div>
       <div class="kpi kpi-warn" id="kpiNegCard">
-        <div class="kpi-label">全体 ネガティブ率（今月）</div>
+        <div class="kpi-label">気になった点の選択率（今月）</div>
         <div class="kpi-value" id="kpiNeg">—<span class="kpi-unit">%</span></div>
-        <div class="kpi-sub" id="kpiNegSub">★1〜3点 / 総レビュー数</div>
+        <div class="kpi-sub" id="kpiNegSub">気になった点を1つ以上選択 / 総回答数</div>
         <div class="kpi-badge badge-ref">参考値</div>
       </div>
     </div>
@@ -374,13 +374,8 @@ body {
   </div>
 
   <div class="section">
-    <div class="sec-title">今月のネガティブ傾向</div>
-    <div class="sec-meta" id="negMeta">2026年5月 / ★1〜3点コメントよりキーワード集計 / カテゴリをクリックするとAI要約と代表コメントが右に表示されます</div>
-
-    <div class="data-note">
-      <strong>📊 集計について</strong>　1コメントが複数キーワードを含む場合は各カテゴリにカウントされるため、カテゴリ件数の合計はネガティブコメント総数を上回ります。「その他」は清掃・設備・CSなどのキーワードを含まないコメントの件数です。
-    </div>
-
+    <div class="sec-title">自由記述からのネガティブ傾向</div>
+    <div class="sec-meta" id="negMeta">今月 / ★1〜3点コメントよりキーワード集計 / カテゴリをクリックすると代表コメントが右に表示されます</div>
     <div class="neg-cols">
       <div>
         <div class="neg-panel" style="margin-bottom:14px">
@@ -457,8 +452,8 @@ badge.className = `kpi-badge ${avgOk?'badge-ok':'badge-ng'}`;
 badge.textContent = avgOk ? '✓ 目標達成（4.75以上）' : '▼ 目標未達（4.75以上）';
 document.getElementById('kpiClean').innerHTML = DATA.kpi.cleanRate+'<span class="kpi-unit">%</span>';
 document.getElementById('kpiCleanSub').textContent = `清掃品質指摘 ${DATA.kpi.cleanNeg}件 / 総回答 ${DATA.kpi.totalResponses.toLocaleString()}件`;
-document.getElementById('kpiNeg').innerHTML = negRate+'<span class="kpi-unit">%</span>';
-document.getElementById('kpiNegSub').textContent = `★1〜3点 ${totalNeg}件 / 総レビュー ${totalReviews.toLocaleString()}件`;
+document.getElementById('kpiNeg').innerHTML = DATA.kpi.hasIssueRate+'<span class="kpi-unit">%</span>';
+document.getElementById('kpiNegSub').textContent = `問題あり ${DATA.kpi.hasIssue}件 / 総回答 ${DATA.kpi.totalResponses.toLocaleString()}件`;
 
 // Weekly chart
 new Chart(document.getElementById('weeklyChart'),{
