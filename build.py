@@ -1,7 +1,7 @@
 import os
 import json
 import snowflake.connector
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import re
 
 conn = snowflake.connector.connect(
@@ -61,7 +61,7 @@ sites_rows = cur.fetchall()
 
 # ⑤ 全コメント（直近30日）
 cur.execute("""
-SELECT a.SITE_NAME, r.RATING, r.COMMENT, TO_CHAR(r.CREATED_AT, 'M/D')
+SELECT a.SITE_NAME, r.RATING, r.COMMENT, TO_CHAR(r.CREATED_AT, 'MM/DD')
 FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS r
 JOIN PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS res
   ON r.ACCOMMODATION_RESERVATION_ID = res.ACCOMMODATION_RESERVATION_ID
@@ -73,15 +73,15 @@ ORDER BY r.CREATED_AT DESC LIMIT 500
 """)
 all_comment_rows = cur.fetchall()
 
-# ⑥ ネガコメ（今月★1〜3）
+# ⑥ ネガコメ（直近30日★1〜3）
 cur.execute("""
-SELECT a.SITE_NAME, r.RATING, r.COMMENT, TO_CHAR(r.CREATED_AT, 'M/D')
+SELECT a.SITE_NAME, r.RATING, r.COMMENT, TO_CHAR(r.CREATED_AT, 'MM/DD')
 FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS r
 JOIN PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS res
   ON r.ACCOMMODATION_RESERVATION_ID = res.ACCOMMODATION_RESERVATION_ID
 JOIN PRD_ANALYTICS.CORES.DIM__ACCOMMODATIONS a
   ON res.ACCOMMODATION_ID = a.ACCOMMODATION_ID
-WHERE r.CREATED_AT >= DATE_TRUNC('month', CURRENT_DATE())
+WHERE r.CREATED_AT >= DATEADD('day', -30, CURRENT_TIMESTAMP())
   AND r.RATING BETWEEN 1 AND 3
   AND r.COMMENT IS NOT NULL AND r.COMMENT != ''
 ORDER BY r.CREATED_AT DESC
@@ -178,7 +178,7 @@ neg_cleaning = [build_cat(c, neg_rows) for c in categories_clean]
 neg_other    = [build_cat(c, neg_rows) for c in categories_other]
 
 # ---- 出力 ----
-now = datetime.now()
+now = datetime.now(timezone(timedelta(hours=9)))  # JST
 data = {
     "lastUpdated": now.strftime("%Y/%m/%d %H:%M"),
     "kpi": {
