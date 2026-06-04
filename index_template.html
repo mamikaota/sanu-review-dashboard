@@ -325,8 +325,8 @@ body {
 </div>
 
 <div class="page-tabs">
-  <div class="page-tab active" onclick="switchPage('trend',this)">📈 スコア推移・ネガティブ傾向</div>
-  <div class="page-tab" onclick="switchPage('sites',this)">🏠 拠点別スコア</div>
+  <div class="page-tab active" onclick="switchPage('trend',this)">📈 レビュー推移・ネガティブ傾向</div>
+  <div class="page-tab" onclick="switchPage('sites',this)">🏠 拠点別レビュー</div>
 </div>
 
 <!-- ===== PAGE 1 ===== -->
@@ -336,9 +336,9 @@ body {
   <div class="section">
     <div class="kpi-row">
       <div class="kpi" id="kpiAvgCard">
-        <div class="kpi-label">直近4週間 平均スコア</div>
+        <div class="kpi-label">直近4週間 平均レビュー</div>
         <div class="kpi-value" id="kpiAvg">—<span class="kpi-unit"> / 5</span></div>
-        <div class="kpi-sub">直近4週（0点除く有効スコア）</div>
+        <div class="kpi-sub">直近4週（0点除く有効レビュー）</div>
         <div class="kpi-badge" id="kpiAvgBadge">目標：4.75以上</div>
       </div>
       <div class="kpi" id="kpiCleanCard">
@@ -356,11 +356,11 @@ body {
   </div>
 
   <div class="section">
-    <div class="sec-title">週次スコア推移</div>
-    <div class="sec-meta">直近17週 / 平均評価スコア（0点除く） / 破線：目標ライン 4.75</div>
+    <div class="sec-title">週次レビュー推移</div>
+    <div class="sec-meta">直近17週 / 平均評価レビュー（0点除く） / 破線：目標ライン 4.75</div>
     <div class="card" style="padding-bottom:12px">
       <div class="chart-wrap">
-        <canvas id="weeklyChart" role="img" aria-label="週次平均スコア推移">週次スコア推移</canvas>
+        <canvas id="weeklyChart" role="img" aria-label="週次平均レビュー推移">週次レビュー推移</canvas>
       </div>
     </div>
   </div>
@@ -375,7 +375,7 @@ body {
 
   <div class="section">
     <div class="sec-title">自由記述からのネガティブ傾向</div>
-    <div class="sec-meta" id="negMeta">今月 / ★1〜3点コメントよりキーワード集計 / カテゴリをクリックすると代表コメントが右に表示されます</div>
+    <div class="sec-meta" id="negMeta">直近30日 / ★1〜3点コメントよりキーワード集計 / カテゴリをクリックすると代表コメントが右に表示されます</div>
     <div class="neg-cols">
       <div>
         <div class="neg-panel" style="margin-bottom:14px">
@@ -415,14 +415,14 @@ body {
 <div class="container">
 
   <div class="section">
-    <div class="sec-title">拠点別スコア</div>
+    <div class="sec-title">拠点別レビュー</div>
     <div class="sec-meta">直近30日間 / スコア昇順 / 「要対応」「要注意」拠点はクリックで直近コメント・AI要約を展開</div>
     <div class="site-table-wrap">
       <div class="site-table-head">
         <span>#</span>
         <span>拠点名</span>
         <span style="text-align:right">件数</span>
-        <span style="text-align:right">スコア</span>
+        <span style="text-align:right">レビュー</span>
         <span style="padding:0 6px">バー</span>
         <span style="text-align:center">評価</span>
       </div>
@@ -462,7 +462,7 @@ new Chart(document.getElementById('weeklyChart'),{
     labels: DATA.weekly.map(d=>d.w),
     datasets:[
       {
-        label:'平均スコア',
+        label:'平均レビュー',
         data: DATA.weekly.map(d=>d.s),
         borderColor:'#2C4A2A',
         backgroundColor:'rgba(44,74,42,0.05)',
