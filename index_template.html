@@ -336,7 +336,7 @@ body {
   <div class="section">
     <div class="kpi-row">
       <div class="kpi" id="kpiAvgCard">
-        <div class="kpi-label">直近4週間 平均レビュー</div>
+        <div class="kpi-label">直近30日 平均レビュー</div>
         <div class="kpi-value" id="kpiAvg">—<span class="kpi-unit"> / 5</span></div>
         <div class="kpi-sub">直近4週（0点除く有効レビュー）</div>
         <div class="kpi-badge" id="kpiAvgBadge">目標：4.75以上</div>
@@ -357,10 +357,20 @@ body {
 
   <div class="section">
     <div class="sec-title">週次レビュー推移</div>
-    <div class="sec-meta">直近17週 / 平均評価レビュー（0点除く） / 破線：目標ライン 4.75</div>
+    <div class="sec-meta">直近17週 / 平均評価レビュー（0点除く） / 緑破線：目標ライン 4.75 / 赤破線：最低ライン 4.50</div>
     <div class="card" style="padding-bottom:12px">
       <div class="chart-wrap">
         <canvas id="weeklyChart" role="img" aria-label="週次平均レビュー推移">週次レビュー推移</canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">週次 清掃品質指摘率推移</div>
+    <div class="sec-meta">直近17週 / チェックアウト時の選択式回答より / 清掃不足ありの選択率（%）</div>
+    <div class="card">
+      <div class="chart-wrap">
+        <canvas id="cleanChart" role="img" aria-label="週次清掃品質指摘率推移"></canvas>
       </div>
     </div>
   </div>
@@ -370,6 +380,10 @@ body {
     <div class="sec-meta" id="issueMeta">今月 / チェックアウト時の選択式回答 / 複数選択可のため合計は総回答数を超える場合があります</div>
     <div class="card" style="padding:20px 24px">
       <div id="issueChart"></div>
+
+  </div><!-- end section -->
+
+  <div class="section"><!-- dummy open for structure -->
     </div>
   </div>
 
@@ -475,9 +489,18 @@ new Chart(document.getElementById('weeklyChart'),{
       {
         label:'目標（4.75）',
         data: DATA.weekly.map(()=>4.75),
-        borderColor:'#EC572E',
+        borderColor:'#6A9A5E',
         borderWidth:1.5,
         borderDash:[5,4],
+        pointRadius:0,
+        fill:false,
+        tension:0,
+      },{
+        label:'最低ライン（4.50）',
+        data: DATA.weekly.map(()=>4.50),
+        borderColor:'#EC572E',
+        borderWidth:1.5,
+        borderDash:[4,4],
         pointRadius:0,
         fill:false,
         tension:0,
@@ -488,11 +511,11 @@ new Chart(document.getElementById('weeklyChart'),{
     responsive:true,maintainAspectRatio:false,
     plugins:{
       legend:{display:true,position:'top',labels:{font:{size:11},color:'#6A6250',boxWidth:20}},
-      tooltip:{callbacks:{label:c=>c.datasetIndex===0?` ${c.raw.toFixed(2)}点（${DATA.weekly[c.dataIndex].n.toLocaleString()}件）`:` 目標 4.75`}}
+      tooltip:{callbacks:{label:c=>c.datasetIndex===0?` ${c.raw.toFixed(2)}点（${DATA.weekly[c.dataIndex].n.toLocaleString()}件）`:c.datasetIndex===1?` 目標 4.75`:` 最低ライン 4.50`}}
     },
     scales:{
       x:{grid:{display:false},ticks:{font:{size:10,family:"'JetBrains Mono',monospace"},color:'#6A6250',maxRotation:45}},
-      y:{min:4.4,max:4.9,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:10},color:'#6A6250',callback:v=>v.toFixed(2)}}
+      y:{min:4.3,max:4.9,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:10},color:'#6A6250',callback:v=>v.toFixed(2)}}
     }
   }
 });
@@ -603,6 +626,36 @@ function toggleSite(id,idx){
       <div class="issue-count">${d.count}件</div>
     </div>`).join('');
 })();
+
+
+// 清掃指摘率グラフ
+new Chart(document.getElementById('cleanChart'),{
+  type:'line',
+  data:{
+    labels: DATA.weeklyClean.map(d=>d.w),
+    datasets:[{
+      label:'清掃指摘率',
+      data: DATA.weeklyClean.map(d=>d.r),
+      borderColor:'#EC572E',
+      backgroundColor:'rgba(236,87,46,0.07)',
+      borderWidth:2,
+      pointRadius: DATA.weeklyClean.map(d=>d.r>5?5:3),
+      pointBackgroundColor: DATA.weeklyClean.map(d=>d.r>5?'#EC572E':'#B8842A'),
+      fill:true,tension:0.35
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{label:c=>` ${c.raw.toFixed(1)}%（${DATA.weeklyClean[c.dataIndex].n.toLocaleString()}件中）`}}
+    },
+    scales:{
+      y:{min:0,ticks:{callback:v=>v+'%'},grid:{color:'rgba(0,0,0,0.04)'}},
+      x:{grid:{display:false},ticks:{font:{size:10,family:"'JetBrains Mono',monospace"},color:'#6A6250',maxRotation:45}}
+    }
+  }
+});
 
 function switchPage(id,el){
   document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
