@@ -24,13 +24,27 @@ GROUP BY 1 ORDER BY 1
 """)
 weekly_rows = cur.fetchall()
 
-# ② KPI（今月）
+# ①-b 週次清掃指摘率（直近17週）
+cur.execute("""
+SELECT
+  DATE_TRUNC('week', c.CREATED_AT) as week_start,
+  COUNT(*) as total,
+  SUM(CASE WHEN c.SELECTION_AT_CHECK_OUT_ANSWER LIKE '%cleanliness_issue%' THEN 1 ELSE 0 END) as clean_count
+FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS__CUSTOMIZABLE c
+WHERE c.CREATED_AT >= DATEADD('week', -17, CURRENT_TIMESTAMP())
+  AND c.SELECTION_AT_CHECK_OUT_ANSWER IS NOT NULL
+  AND c.SELECTION_AT_CHECK_OUT_ANSWER != ''
+GROUP BY 1 ORDER BY 1
+""")
+weekly_clean_rows = cur.fetchall()
+
+# ② KPI（直近30日）
 cur.execute("""
 SELECT COUNT(*),
   ROUND(AVG(CASE WHEN RATING > 0 THEN RATING END), 2),
   SUM(CASE WHEN RATING BETWEEN 1 AND 3 THEN 1 ELSE 0 END)
 FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS
-WHERE CREATED_AT >= DATE_TRUNC('month', CURRENT_DATE())
+WHERE CREATED_AT >= DATEADD('day', -30, CURRENT_TIMESTAMP())
 """)
 kpi = cur.fetchone()
 
@@ -139,6 +153,8 @@ neg_count = kpi[2] or 0
 
 # ---- 週次 ----
 weekly = [{"w": str(r[0])[5:10].lstrip("0").replace("-", "/"), "n": r[1], "s": float(r[2] or 0)} for r in weekly_rows]
+weekly_clean = [{"w": str(r[0])[5:10].lstrip("0").replace("-", "/"), "n": r[1],
+                 "r": round(r[2] / r[1] * 100, 1) if r[1] > 0 else 0} for r in weekly_clean_rows]
 
 # ---- 拠点 ----
 sites = [{"name": r[0], "n": r[1], "s": float(r[2] or 0), "comments": []} for r in sites_rows]
@@ -193,6 +209,7 @@ data = {
     },
     "issueList": issue_list,
     "weekly": weekly,
+    "weeklyClean": weekly_clean,
     "negCleaning": neg_cleaning,
     "negOther": neg_other,
     "sites": sites
