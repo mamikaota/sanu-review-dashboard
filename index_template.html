@@ -313,6 +313,8 @@ body {
 .issue-count { width: 50px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--muted); text-align: right; flex-shrink: 0; }
 .issue-clean .issue-bar-inner { background: var(--orange); }
 </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
 </head>
 <body>
 
@@ -326,6 +328,7 @@ body {
 
 <div class="page-tabs">
   <div class="page-tab active" onclick="switchPage('trend',this)">📈 レビュー推移・ネガティブ傾向</div>
+  <div class="page-tab" onclick="switchPage('issues',this)">📊 気になった点推移・相関分析</div>
   <div class="page-tab" onclick="switchPage('sites',this)">🏠 拠点別レビュー</div>
 </div>
 
@@ -342,14 +345,14 @@ body {
         <div class="kpi-badge" id="kpiAvgBadge">目標：4.75以上</div>
       </div>
       <div class="kpi" id="kpiCleanCard">
-        <div class="kpi-label">清掃品質 指摘率（今月）</div>
+        <div class="kpi-label">清掃品質 指摘率（直近30日）</div>
         <div class="kpi-value" id="kpiClean">—<span class="kpi-unit">%</span></div>
-        <div class="kpi-sub" id="kpiCleanSub">清掃不足ありの選択数 / 総回答数</div>
+        <div class="kpi-sub" id="kpiCleanSub">清掃不足ありの選択数 / 直近30日総回答数</div>
       </div>
       <div class="kpi kpi-warn" id="kpiNegCard">
-        <div class="kpi-label">気になった点の選択率（今月）</div>
+        <div class="kpi-label">気になった点の選択率（直近30日）</div>
         <div class="kpi-value" id="kpiNeg">—<span class="kpi-unit">%</span></div>
-        <div class="kpi-sub" id="kpiNegSub">気になった点を1つ以上選択 / 総回答数</div>
+        <div class="kpi-sub" id="kpiNegSub">気になった点を1つ以上選択 / 直近30日総回答数</div>
         <div class="kpi-badge badge-ref">参考値</div>
       </div>
     </div>
@@ -366,18 +369,8 @@ body {
   </div>
 
   <div class="section">
-    <div class="sec-title">週次 清掃品質指摘率推移</div>
-    <div class="sec-meta">直近17週 / チェックアウト時の選択式回答より / 清掃不足ありの選択率（%）</div>
-    <div class="card">
-      <div class="chart-wrap">
-        <canvas id="cleanChart" role="img" aria-label="週次清掃品質指摘率推移"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="sec-title">滞在中に気になった点（選択式）</div>
-    <div class="sec-meta" id="issueMeta">今月 / チェックアウト時の選択式回答 / 複数選択可のため合計は総回答数を超える場合があります</div>
+    <div class="sec-title">滞在中に気になった点（選択式・直近30日）</div>
+    <div class="sec-meta" id="issueMeta">直近30日 / チェックアウト時の選択式回答 / 複数選択可のため合計は総回答数を超える場合があります</div>
     <div class="card" style="padding:20px 24px">
       <div id="issueChart"></div>
 
@@ -425,12 +418,51 @@ body {
 </div>
 
 <!-- ===== PAGE 2 ===== -->
+<div class="page" id="page-issues" style="overflow-x:hidden">
+<div class="container">
+
+  <div class="section">
+    <div class="sec-title">気になった点 隔週指摘率推移（全10項目）</div>
+    <div class="sec-meta">直近3ヶ月 / 2週間単位 / チェックアウト時の選択式回答より（%）</div>
+    <div class="card">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;row-gap:6px" id="trendLegend"></div>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">気になった点×レビュースコア相関分析</div>
+    <div class="sec-meta">直近3ヶ月 / 選択時の平均レビュー（低い順）/ 赤ほどスコアへの影響大</div>
+    <div class="card" style="padding:20px 24px">
+      <div id="correlationChart"></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+</div>
+
 <div class="page" id="page-sites">
 <div class="container">
 
   <div class="section">
     <div class="sec-title">拠点別レビュー</div>
-    <div class="sec-meta">直近30日間 / スコア昇順 / 「要対応」「要注意」拠点はクリックで直近コメント・AI要約を展開</div>
+    <div class="sec-meta">直近30日間 / レビュー昇順 / 拠点をクリックで直近コメントを展開</div>
+    <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:2px solid var(--bg-mid)">
+      <button id="siteTab-all" onclick="filterSites('all')"
+        style="padding:6px 16px;font-size:12px;border:none;background:none;cursor:pointer;color:var(--text);border-bottom:2px solid var(--orange);margin-bottom:-2px;font-weight:600">
+        全拠点
+      </button>
+      <button id="siteTab-Original" onclick="filterSites('Original')"
+        style="padding:6px 16px;font-size:12px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">
+        Original Series
+      </button>
+      <button id="siteTab-Selection" onclick="filterSites('Selection')"
+        style="padding:6px 16px;font-size:12px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">
+        Selection Series
+      </button>
+    </div>
     <div class="site-table-wrap">
       <div class="site-table-head">
         <span>#</span>
@@ -569,7 +601,6 @@ function selectCat(id, isClean) {
 selectCat('c1', true);
 
 // SITE TABLE
-
 function sCol(s){return s<4.4?'#EC572E':s<4.6?'#B8842A':s<4.75?'#2C4A2A':'#1A4810';}
 function bCol(s){return s<4.4?'#EC572E':s<4.6?'#B8842A':'#6A9A5E';}
 function sTag(s,n){
@@ -579,30 +610,50 @@ function sTag(s,n){
   if(s<4.75) return{l:'標準',  c:'tag-ok'};
   return          {l:'高評価',c:'tag-great'};
 }
-const tbody = document.getElementById('siteTableBody');
-tbody.innerHTML = DATA.sites.map((site,i)=>{
-  const pct = Math.round(((site.s-3.5)/1.5)*100);
-  const tag = sTag(site.s,site.n);
-  const isLow = site.s<4.6 && site.n>4;
-  const commHtml = site.comments.length
-    ? site.comments.map(c=>`<div class="expand-comment"><span class="ec-star">★${c.r}</span><span>${c.t}</span><span class="ec-date" style="margin-left:auto">${c.d}</span></div>`).join('')
-    : '<div class="expand-comment" style="color:var(--muted)">直近30日間の低評価コメントなし</div>';
-  return `
-    <div class="site-row-wrap">
-      <div class="site-row" onclick="toggleSite('sx-${i}',${i})" style="cursor:pointer">
-        <div class="site-rank">${i+1}</div>
-        <div class="site-name-txt">${site.name}</div>
-        <div class="site-count">${site.n}件</div>
-        <div class="site-score" style="color:${sCol(site.s)}">${site.s.toFixed(2)}</div>
-        <div class="site-bar-cell"><div class="site-bar-wrap"><div class="site-bar-inner" style="width:${pct}%;background:${bCol(site.s)}"></div></div></div>
-        <div class="site-tag-cell"><span class="site-tag ${tag.c}">${tag.l}</span></div>
-      </div>
-      <div class="site-expand" id="sx-${i}">
-        <div class="expand-title">直近のコメント</div>
-        ${commHtml}
-      </div>
-    </div>`;
-}).join('');
+function renderSiteTable(sites){
+  const tbody = document.getElementById('siteTableBody');
+  tbody.innerHTML = sites.map((site,i)=>{
+    const pct = Math.round(((site.s-3.5)/1.5)*100);
+    const tag = sTag(site.s,site.n);
+    const commHtml = site.comments.length
+      ? site.comments.map(c=>`<div class="expand-comment"><span class="ec-star">★${c.r}</span><span>${c.t}</span><span class="ec-date" style="margin-left:auto">${c.d}</span></div>`).join('')
+      : '<div class="expand-comment" style="color:var(--muted)">直近30日間のコメントなし</div>';
+    return `
+      <div class="site-row-wrap">
+        <div class="site-row" onclick="toggleSite('sx-${i}',${i})" style="cursor:pointer">
+          <div class="site-rank">${i+1}</div>
+          <div class="site-name-txt">${site.name}</div>
+          <div class="site-count">${site.n}件</div>
+          <div class="site-score" style="color:${sCol(site.s)}">${site.s.toFixed(2)}</div>
+          <div class="site-bar-cell"><div class="site-bar-wrap"><div class="site-bar-inner" style="width:${pct}%;background:${bCol(site.s)}"></div></div></div>
+          <div class="site-tag-cell"><span class="site-tag ${tag.c}">${tag.l}</span></div>
+        </div>
+        <div class="site-expand" id="sx-${i}">
+          <div class="expand-title">直近のコメント</div>
+          ${commHtml}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function filterSites(filter){
+  ['all','Original','Selection'].forEach(f=>{
+    const btn = document.getElementById('siteTab-'+f);
+    if(!btn) return;
+    if(f===filter){
+      btn.style.color='var(--text)';
+      btn.style.fontWeight='600';
+      btn.style.borderBottom='2px solid var(--orange)';
+    } else {
+      btn.style.color='var(--muted)';
+      btn.style.fontWeight='400';
+      btn.style.borderBottom='2px solid transparent';
+    }
+  });
+  const sites = filter==='all' ? DATA.sites : DATA.sites.filter(s=>s.series===filter);
+  renderSiteTable(sites);
+}
+
 
 function toggleSite(id,idx){
   const el=document.getElementById(id);
@@ -629,40 +680,128 @@ function toggleSite(id,idx){
 
 
 // 清掃指摘率グラフ
-new Chart(document.getElementById('cleanChart'),{
-  type:'line',
-  data:{
-    labels: DATA.weeklyClean.map(d=>d.w),
-    datasets:[{
-      label:'清掃指摘率',
-      data: DATA.weeklyClean.map(d=>d.r),
-      borderColor:'#EC572E',
-      backgroundColor:'rgba(236,87,46,0.07)',
-      borderWidth:2,
-      pointRadius: DATA.weeklyClean.map(d=>d.r>5?5:3),
-      pointBackgroundColor: DATA.weeklyClean.map(d=>d.r>5?'#EC572E':'#B8842A'),
-      fill:true,tension:0.35
-    }]
-  },
-  options:{
-    responsive:true,maintainAspectRatio:false,
-    plugins:{
-      legend:{display:false},
-      tooltip:{callbacks:{label:c=>` ${c.raw.toFixed(1)}%（${DATA.weeklyClean[c.dataIndex].n.toLocaleString()}件中）`}}
+if(DATA.weeklyClean && DATA.weeklyClean.length > 0){
+  new Chart(document.getElementById('cleanChart'),{
+    type:'line',
+    data:{
+      labels: DATA.weeklyClean.map(d=>d.w),
+      datasets:[{
+        label:'清掃指摘率',
+        data: DATA.weeklyClean.map(d=>d.r),
+        borderColor:'#EC572E',
+        backgroundColor:'rgba(236,87,46,0.07)',
+        borderWidth:2,
+        pointRadius: DATA.weeklyClean.map(d=>d.r>5?5:3),
+        pointBackgroundColor: DATA.weeklyClean.map(d=>d.r>5?'#EC572E':'#B8842A'),
+        fill:true,tension:0.35
+      }]
     },
-    scales:{
-      y:{min:0,ticks:{callback:v=>v+'%'},grid:{color:'rgba(0,0,0,0.04)'}},
-      x:{grid:{display:false},ticks:{font:{size:10,family:"'JetBrains Mono',monospace"},color:'#6A6250',maxRotation:45}}
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>` ${c.raw.toFixed(1)}%（${DATA.weeklyClean[c.dataIndex].n.toLocaleString()}件中）`}}
+      },
+      scales:{
+        y:{min:0,ticks:{callback:v=>v+'%'},grid:{color:'rgba(0,0,0,0.04)'}},
+        x:{grid:{display:false},ticks:{font:{size:10,family:"'JetBrains Mono',monospace"},color:'#6A6250',maxRotation:45}}
+      }
     }
-  }
-});
+  });
+}
 
+// ===== TAB2: 隔週指摘率推移グラフ =====
+var issueChartsInitialized = false;
 function switchPage(id,el){
   document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById(`page-${id}`).classList.add('active');
+  // タブ2を開いたときにグラフを初期化（非表示時は描画できないため）
+  if(id === 'issues' && !issueChartsInitialized) {
+    issueChartsInitialized = true;
+    initIssueCharts();
+  }
 }
+function initIssueCharts(){
+  // ---- 全10項目 隔週指摘率推移 ----
+  const KEYS = ['cleanliness','missing','facility','usage','noise','insect','checkin','checkout','booking','support'];
+  const LABELS = {
+    cleanliness:'清掃不足あり', missing:'備品の不足', facility:'設備不具合あり',
+    usage:'設備の使い方不明', noise:'騒音や隣室気になる', insect:'虫の侵入気になる',
+    checkin:'チェックイン不明瞭', checkout:'チェックアウト不明瞭',
+    booking:'予約や事前案内の不明瞭', support:'サポート対応不十分'
+  };
+  const COLORS = {
+    cleanliness:'#EC572E', missing:'#B8842A', facility:'#6A9A5E',
+    usage:'#5B8DB8', noise:'#9B59B6', insect:'#2C9E78',
+    checkin:'#D4A017', checkout:'#7A5C3A', booking:'#4A90D9', support:'#C0392B'
+  };
+  const d = DATA.issueTrend;
+  // 凡例
+  document.getElementById('trendLegend').innerHTML = KEYS.map(k=>`
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text)">
+      <span style="width:20px;height:3px;background:${COLORS[k]};display:inline-block;border-radius:2px"></span>${LABELS[k]}
+    </div>`).join('');
+  // グラフ
+  new Chart(document.getElementById('trendChart'),{
+    type:'line',
+    data:{
+      labels: d.map(r=>r.w),
+      datasets: KEYS.map(k=>({
+        label: LABELS[k],
+        data: d.map(r=>r[k]||0),
+        borderColor: COLORS[k],
+        backgroundColor: COLORS[k]+'18',
+        borderWidth: 1.8,
+        pointRadius: 3,
+        fill: false,
+        tension: 0.3
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw.toFixed(1)}%`}}
+      },
+      scales:{
+        y:{min:0, ticks:{callback:v=>v+'%'}, grid:{color:'rgba(0,0,0,0.04)'}},
+        x:{grid:{display:false}, ticks:{font:{size:10}, color:'var(--muted)'}}
+      }
+    }
+  });
+
+  // ---- 相関分析：横棒グラフ ----
+  const avg = DATA.kpi.avgScore;
+  const sorted = [...DATA.correlation].sort((a,b)=>a.avg-b.avg);
+  const maxVal = 5.0;
+  const minVal = 3.0;
+  document.getElementById('correlationChart').innerHTML =
+    `<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;font-size:11px;color:var(--muted)">
+      <div style="width:160px"></div>
+      <div style="flex:1;text-align:center">平均レビュー（低 ← → 高）</div>
+      <div style="width:40px;text-align:right">件数</div>
+    </div>` +
+    sorted.map(d=>{
+      const pct = (d.avg - minVal) / (maxVal - minVal) * 100;
+      const avgPct = (avg - minVal) / (maxVal - minVal) * 100;
+      const color = d.avg < avg - 0.3 ? '#EC572E' : d.avg < avg ? '#B8842A' : '#6A9A5E';
+      return `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bg-mid)">
+        <div style="width:160px;font-size:12px;flex-shrink:0">${d.label}</div>
+        <div style="flex:1;position:relative;height:18px;background:var(--bg-mid);border-radius:3px">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${color};border-radius:3px;opacity:0.85"></div>
+          <div style="position:absolute;left:${avgPct}%;top:-3px;height:24px;width:2px;background:#2C4A2A;opacity:0.6"></div>
+          <div style="position:absolute;left:${pct}%;top:1px;transform:translateX(-50%);font-size:10px;font-family:'JetBrains Mono',monospace;color:#fff;font-weight:600;white-space:nowrap;pointer-events:none">${d.avg.toFixed(2)}</div>
+        </div>
+        <div style="width:40px;font-size:11px;color:var(--muted);text-align:right;flex-shrink:0">${d.count}件</div>
+      </div>`;
+    }).join('') +
+    `<div style="font-size:10px;color:var(--muted);margin-top:8px">緑縦線：直近30日 全体平均 ${avg.toFixed(2)} / 赤＝平均より0.3以上低い / 橙＝やや低い / 緑＝平均以上</div>`;
+}
+
+filterSites('all');
 </script>
 </body>
 </html>
