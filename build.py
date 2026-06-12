@@ -96,7 +96,7 @@ TREND_KEYS = [
 ]
 cur.execute("""
 SELECT
-  DATEADD('day', -MOD(DATEDIFF('day', '2024-01-01', DATE(CREATED_AT)), 14),
+  DATEADD('day', -MOD(DATEDIFF('day', '2026-04-01', DATE(CREATED_AT)), 14),
     DATE(CREATED_AT)) as biweek_start,
   COUNT(*) as total,
   SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%cleanliness_issue%' THEN 1 ELSE 0 END) as c1,
