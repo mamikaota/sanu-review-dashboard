@@ -49,10 +49,11 @@ body {
   z-index: 200;
 }
 .header-brand {
-  font-family: 'DM Serif Display', serif;
-  font-size: 17px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--white);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
 }
 .header-brand span {
   font-family: 'Noto Sans JP', sans-serif;
@@ -76,8 +77,9 @@ body {
   border-top: 1px solid rgba(255,255,255,0.08);
 }
 .page-tab {
-  padding: 11px 22px;
+  padding: 11px 16px;
   font-size: 12px;
+  white-space: nowrap;
   font-weight: 500;
   color: rgba(255,255,255,0.45);
   cursor: pointer;
@@ -447,7 +449,13 @@ body {
 <div class="container">
 
   <div class="section">
-    <div class="sec-title">拠点別レビュー</div>
+    <div class="sec-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>拠点別レビュー</span>
+      <a href="https://docs.google.com/spreadsheets/d/1sx3daAWbnA4_JhEJwxo7mafwCEC2_XqU3rG-SKyLexs/edit?gid=1770399237#gid=1770399237" target="_blank"
+        style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;background:var(--forest);color:white;border-radius:6px;font-size:12px;text-decoration:none;font-weight:500;white-space:nowrap">
+        レビュー詳細をみる ↗
+      </a>
+    </div>
     <div class="sec-meta">直近30日間 / レビュー昇順 / 拠点をクリックで直近コメントを展開</div>
     <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:2px solid var(--bg-mid)">
       <button id="siteTab-all" onclick="filterSites('all')"
