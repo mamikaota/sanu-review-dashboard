@@ -14,7 +14,7 @@ conn = snowflake.connector.connect(
 )
 cur = conn.cursor()
 
-# ① 週次スコア推移
+# ① 週次レビュー推移
 cur.execute("""
 SELECT DATE_TRUNC('week', CREATED_AT), COUNT(*),
   ROUND(AVG(CASE WHEN RATING > 0 THEN RATING END), 2)
@@ -23,20 +23,6 @@ WHERE CREATED_AT >= DATEADD('week', -17, CURRENT_TIMESTAMP())
 GROUP BY 1 ORDER BY 1
 """)
 weekly_rows = cur.fetchall()
-
-# ①-b 週次清掃指摘率（直近17週）
-cur.execute("""
-SELECT
-  DATE_TRUNC('week', c.CREATED_AT) as week_start,
-  COUNT(*) as total,
-  SUM(CASE WHEN c.SELECTION_AT_CHECK_OUT_ANSWER LIKE '%cleanliness_issue%' THEN 1 ELSE 0 END) as clean_count
-FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS__CUSTOMIZABLE c
-WHERE c.CREATED_AT >= DATEADD('week', -17, CURRENT_TIMESTAMP())
-  AND c.SELECTION_AT_CHECK_OUT_ANSWER IS NOT NULL
-  AND c.SELECTION_AT_CHECK_OUT_ANSWER != ''
-GROUP BY 1 ORDER BY 1
-""")
-weekly_clean_rows = cur.fetchall()
 
 # ② KPI（直近30日）
 cur.execute("""
@@ -52,7 +38,7 @@ kpi = cur.fetchone()
 cur.execute("""
 SELECT SELECTION_AT_CHECK_OUT_ANSWER, COUNT(*) as cnt
 FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS__CUSTOMIZABLE
-WHERE CREATED_AT >= DATE_TRUNC('month', CURRENT_DATE())
+WHERE CREATED_AT >= DATEADD('day', -30, CURRENT_TIMESTAMP())
   AND SELECTION_AT_CHECK_OUT_ANSWER IS NOT NULL
   AND SELECTION_AT_CHECK_OUT_ANSWER != ''
 GROUP BY 1
@@ -62,7 +48,8 @@ selection_rows = cur.fetchall()
 # ④ 拠点別スコア（直近30日）
 cur.execute("""
 SELECT a.SITE_NAME, COUNT(*),
-  ROUND(AVG(CASE WHEN r.RATING > 0 THEN r.RATING END), 2)
+  ROUND(AVG(CASE WHEN r.RATING > 0 THEN r.RATING END), 2),
+  MAX(a.ARCHITECTURE_TYPE_SERIES) as series
 FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS r
 JOIN PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS res
   ON r.ACCOMMODATION_RESERVATION_ID = res.ACCOMMODATION_RESERVATION_ID
@@ -102,6 +89,58 @@ ORDER BY r.CREATED_AT DESC
 """)
 neg_rows = cur.fetchall()
 
+# ⑦ 5項目の隔週指摘率推移（タブ2用）
+TREND_KEYS = [
+    "cleanliness_issue", "missing_amenities", "facility_issue",
+    "usage_instruction_issue", "noise_issue"
+]
+cur.execute("""
+SELECT
+  DATEADD('day', -MOD(DATEDIFF('day', '2024-01-01', DATE(CREATED_AT)), 14),
+    DATE(CREATED_AT)) as biweek_start,
+  COUNT(*) as total,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%cleanliness_issue%' THEN 1 ELSE 0 END) as c1,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%missing_amenities%' THEN 1 ELSE 0 END) as c2,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%facility_issue%' THEN 1 ELSE 0 END) as c3,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%usage_instruction_issue%' THEN 1 ELSE 0 END) as c4,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%noise_issue%' THEN 1 ELSE 0 END) as c5,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%insect_issue%' THEN 1 ELSE 0 END) as c6,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%checkin_issue%' THEN 1 ELSE 0 END) as c7,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%checkout_issue%' THEN 1 ELSE 0 END) as c8,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%booking_information_issue%' THEN 1 ELSE 0 END) as c9,
+  SUM(CASE WHEN SELECTION_AT_CHECK_OUT_ANSWER LIKE '%support_issue%' THEN 1 ELSE 0 END) as c10
+FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS__CUSTOMIZABLE
+WHERE CREATED_AT >= DATEADD('month', -3, CURRENT_DATE())
+  AND SELECTION_AT_CHECK_OUT_ANSWER IS NOT NULL
+  AND SELECTION_AT_CHECK_OUT_ANSWER != ''
+GROUP BY 1 ORDER BY 1
+""")
+trend_rows = cur.fetchall()
+
+# ⑧ 相関分析（選択肢ごとの平均レビュー）
+cur.execute("""
+SELECT
+  issue_key,
+  COUNT(*) as selected_count,
+  ROUND(AVG(RATING), 2) as avg_rating_selected
+FROM (
+  SELECT
+    c.RATING,
+    TRIM(f.value, '{}') as issue_key
+  FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS__CUSTOMIZABLE c,
+    LATERAL SPLIT_TO_TABLE(c.SELECTION_AT_CHECK_OUT_ANSWER, ',') f
+  WHERE c.CREATED_AT >= DATEADD('month', -3, CURRENT_DATE())
+    AND c.RATING > 0
+    AND c.SELECTION_AT_CHECK_OUT_ANSWER IS NOT NULL
+    AND c.SELECTION_AT_CHECK_OUT_ANSWER NOT IN ('', '{}')
+) t
+WHERE issue_key NOT IN ('no_issue', '')
+  AND issue_key NOT LIKE '%gebruiken%'
+GROUP BY issue_key
+ORDER BY avg_rating_selected ASC
+""")
+correlation_rows = cur.fetchall()
+
 cur.close()
 conn.close()
 
@@ -135,7 +174,6 @@ for row in selection_rows:
         if k in issue_counts:
             issue_counts[k] += cnt
 
-# 表示用リスト（特になし含む、件数降順）
 issue_list = [
     {"key": k, "label": LABEL_MAP[k], "count": issue_counts[k]}
     for k in LABEL_MAP
@@ -153,11 +191,39 @@ neg_count = kpi[2] or 0
 
 # ---- 週次 ----
 weekly = [{"w": str(r[0])[5:10].lstrip("0").replace("-", "/"), "n": r[1], "s": float(r[2] or 0)} for r in weekly_rows]
-weekly_clean = [{"w": str(r[0])[5:10].lstrip("0").replace("-", "/"), "n": r[1],
-                 "r": round(r[2] / r[1] * 100, 1) if r[1] > 0 else 0} for r in weekly_clean_rows]
+
+# ---- 隔週指摘率推移 ----
+def fmt_biweek(d):
+    s = str(d)[:10]
+    return s[5:].lstrip("0").replace("-", "/")
+
+issue_trend = [
+    {
+        "w": fmt_biweek(r[0]),
+        "n": r[1],
+        "cleanliness": round(r[2]/r[1]*100, 1) if r[1] > 0 else 0,
+        "missing":     round(r[3]/r[1]*100, 1) if r[1] > 0 else 0,
+        "facility":    round(r[4]/r[1]*100, 1) if r[1] > 0 else 0,
+        "usage":       round(r[5]/r[1]*100, 1) if r[1] > 0 else 0,
+        "noise":       round(r[6]/r[1]*100, 1) if r[1] > 0 else 0,
+        "insect":      round(r[7]/r[1]*100, 1) if r[1] > 0 else 0,
+        "checkin":     round(r[8]/r[1]*100, 1) if r[1] > 0 else 0,
+        "checkout":    round(r[9]/r[1]*100, 1) if r[1] > 0 else 0,
+        "booking":     round(r[10]/r[1]*100, 1) if r[1] > 0 else 0,
+        "support":     round(r[11]/r[1]*100, 1) if r[1] > 0 else 0,
+    }
+    for r in trend_rows
+]
+
+# ---- 相関分析 ----
+correlation = [
+    {"key": r[0], "label": LABEL_MAP.get(r[0], r[0]), "count": r[1], "avg": float(r[2])}
+    for r in correlation_rows
+    if r[0] in LABEL_MAP
+]
 
 # ---- 拠点 ----
-sites = [{"name": r[0], "n": r[1], "s": float(r[2] or 0), "comments": []} for r in sites_rows]
+sites = [{"name": r[0], "n": r[1], "s": float(r[2] or 0), "series": r[3] or "Original", "comments": []} for r in sites_rows]
 comments_by_site = {}
 for r in all_comment_rows:
     site = r[0]
@@ -168,17 +234,17 @@ for r in all_comment_rows:
 for site in sites:
     site["comments"] = comments_by_site.get(site["name"], [])
 
-# ---- ネガカテゴリ（自由記述キーワードベース） ----
+# ---- ネガカテゴリ ----
 categories_clean = [
     {"id": "c1", "icon": "🧹", "name": "清掃品質",
      "keywords": ["清掃のクオリティ", "清掃が", "汚れ", "ザラザラ", "垢", "埃", "ほこり", "カビ", "拭き残し", "髪の毛", "床上用品"]},
 ]
 categories_other = [
-    {"id": "o1", "icon": "🐛", "name": "害虫・虫",          "keywords": ["虫", "ムカデ", "蜂", "アリ", "蜘蛛", "ゴキブリ"]},
-    {"id": "o2", "icon": "🔧", "name": "設備・備品不具合",   "keywords": ["故障", "壊れ", "動かない", "不具合", "水漏れ", "動作"]},
-    {"id": "o3", "icon": "📞", "name": "サポート・CS対応",   "keywords": ["CS", "コールセンター", "電話", "対応", "つながらない", "折り返し", "清掃費", "ゴミ捨て", "やらされ"]},
-    {"id": "o4", "icon": "🔊", "name": "騒音・隣室",         "keywords": ["騒音", "音", "隣", "うるさい", "響く"]},
-    {"id": "o5", "icon": "😴", "name": "におい",             "keywords": ["におい", "臭い", "臭"]},
+    {"id": "o1", "icon": "🐛", "name": "害虫・虫",        "keywords": ["虫", "ムカデ", "蜂", "アリ", "蜘蛛", "ゴキブリ"]},
+    {"id": "o2", "icon": "🔧", "name": "設備・備品不具合", "keywords": ["故障", "壊れ", "動かない", "不具合", "水漏れ", "動作"]},
+    {"id": "o3", "icon": "📞", "name": "サポート・CS対応", "keywords": ["CS", "コールセンター", "電話", "対応", "つながらない", "折り返し", "清掃費", "ゴミ捨て", "やらされ"]},
+    {"id": "o4", "icon": "🔊", "name": "騒音・隣室",       "keywords": ["騒音", "音", "隣", "うるさい", "響く"]},
+    {"id": "o5", "icon": "😴", "name": "におい",           "keywords": ["におい", "臭い", "臭"]},
 ]
 
 def build_cat(cat_def, rows):
@@ -194,7 +260,7 @@ neg_cleaning = [build_cat(c, neg_rows) for c in categories_clean]
 neg_other    = [build_cat(c, neg_rows) for c in categories_other]
 
 # ---- 出力 ----
-now = datetime.now(timezone(timedelta(hours=9)))  # JST
+now = datetime.now(timezone(timedelta(hours=9)))
 data = {
     "lastUpdated": now.strftime("%Y/%m/%d %H:%M"),
     "kpi": {
@@ -209,7 +275,8 @@ data = {
     },
     "issueList": issue_list,
     "weekly": weekly,
-    "weeklyClean": weekly_clean,
+    "issueTrend": issue_trend,
+    "correlation": correlation,
     "negCleaning": neg_cleaning,
     "negOther": neg_other,
     "sites": sites
