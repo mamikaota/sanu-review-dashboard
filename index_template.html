@@ -834,12 +834,30 @@ function initIssueCharts(){
 
 // 期間切り替え
 var currentPeriod = '30d';
-var PERIOD_LABELS = {
-  '30d':    '直近30日間',
-  'month':  '今月',
-  'month1': '先月',
-  'month2': '先々月'
-};
+// 期間の具体的な日付を計算
+function calcPeriodLabels(){
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = d => `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}`;
+  const today = fmt(now);
+  // 直近30日
+  const d30 = new Date(now); d30.setDate(d30.getDate()-29);
+  // 今月
+  const mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // 先月
+  const m1Start = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const m1End = new Date(now.getFullYear(), now.getMonth(), 0);
+  // 先々月
+  const m2Start = new Date(now.getFullYear(), now.getMonth()-2, 1);
+  const m2End = new Date(now.getFullYear(), now.getMonth()-1, 0);
+  return {
+    '30d':    `直近30日\n${fmt(d30)}〜${today}`,
+    'month':  `今月\n${fmt(mStart)}〜${today}`,
+    'month1': `先月\n${fmt(m1Start)}〜${fmt(m1End)}`,
+    'month2': `先々月\n${fmt(m2Start)}〜${fmt(m2End)}`
+  };
+}
+var PERIOD_LABELS = calcPeriodLabels();
 function switchPeriod(period){
   currentPeriod = period;
   ['30d','month','month1','month2'].forEach(p=>{
@@ -856,7 +874,7 @@ function switchPeriod(period){
     }
   });
   const meta = document.getElementById('sitePeriodMeta');
-  if(meta) meta.textContent = PERIOD_LABELS[period];
+  if(meta) meta.innerHTML = PERIOD_LABELS[period].replace('\\n','<br><span style="font-size:11px;color:var(--muted)">') + '</span>';
   // 現在のシリーズフィルタを維持して再描画
   const activeSeries = document.querySelector('#siteTab-all[style*="font-weight:600"]') ? 'all'
     : document.querySelector('#siteTab-Original[style*="font-weight:600"]') ? 'Original'
@@ -864,6 +882,11 @@ function switchPeriod(period){
     : 'all';
   filterSites(activeSeries);
 }
+// 初期のsec-metaを更新
+(function(){
+  const meta = document.getElementById('sitePeriodMeta');
+  if(meta) meta.innerHTML = PERIOD_LABELS['30d'].replace('\n','<br><span style="font-size:11px;color:var(--muted)">') + '</span>';
+})();
 filterSites('all');
 </script>
 </body>
