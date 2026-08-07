@@ -456,18 +456,36 @@ body {
         レビュー詳細をみる ↗
       </a>
     </div>
-    <div class="sec-meta">直近30日間 / レビュー昇順 / 拠点をクリックで直近コメントを展開</div>
-    <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:2px solid var(--bg-mid)">
+    <div class="sec-meta" id="sitePeriodMeta">直近30日間</div>
+    <div style="display:flex;gap:0;margin-bottom:8px;border-bottom:1px solid var(--bg-mid)">
+      <button id="periodTab-month2" onclick="switchPeriod('month2')"
+        style="padding:6px 14px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap">
+        先々月
+      </button>
+      <button id="periodTab-month1" onclick="switchPeriod('month1')"
+        style="padding:6px 14px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap">
+        先月
+      </button>
+      <button id="periodTab-month" onclick="switchPeriod('month')"
+        style="padding:6px 14px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap">
+        今月
+      </button>
+      <button id="periodTab-30d" onclick="switchPeriod('30d')"
+        style="padding:6px 14px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--text);font-weight:600;border-bottom:2px solid var(--orange);margin-bottom:-1px;white-space:nowrap">
+        直近30日
+      </button>
+    </div>
+    <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--bg-mid)">
       <button id="siteTab-all" onclick="filterSites('all')"
-        style="padding:6px 16px;font-size:12px;border:none;background:none;cursor:pointer;color:var(--text);border-bottom:2px solid var(--orange);margin-bottom:-2px;font-weight:600">
+        style="padding:6px 16px;font-size:12px;border:none;background:none;cursor:pointer;color:var(--text);border-bottom:2px solid var(--orange);margin-bottom:-1px;font-weight:600;white-space:nowrap">
         全拠点
       </button>
       <button id="siteTab-Original" onclick="filterSites('Original')"
-        style="padding:6px 16px;font-size:12px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">
+        style="padding:6px 16px;font-size:12px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap">
         Original Series
       </button>
       <button id="siteTab-Selection" onclick="filterSites('Selection')"
-        style="padding:6px 16px;font-size:12px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">
+        style="padding:6px 16px;font-size:12px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap">
         Selection Series
       </button>
     </div>
@@ -658,7 +676,8 @@ function filterSites(filter){
       btn.style.borderBottom='2px solid transparent';
     }
   });
-  const sites = filter==='all' ? DATA.sites : DATA.sites.filter(s=>s.series===filter);
+  const periodData = (DATA.sitesByPeriod && DATA.sitesByPeriod[currentPeriod]) ? DATA.sitesByPeriod[currentPeriod] : DATA.sites;
+  const sites = filter==='all' ? periodData : periodData.filter(s=>s.series===filter);
   renderSiteTable(sites);
 }
 
@@ -789,12 +808,15 @@ function initIssueCharts(){
     `<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;font-size:11px;color:var(--muted)">
       <div style="width:160px"></div>
       <div style="flex:1;text-align:center">平均レビュー（低 ← → 高）</div>
+      <div style="width:60px;text-align:right">ばらつき</div>
       <div style="width:40px;text-align:right">件数</div>
     </div>` +
     sorted.map(d=>{
       const pct = (d.avg - minVal) / (maxVal - minVal) * 100;
       const avgPct = (avg - minVal) / (maxVal - minVal) * 100;
       const color = d.avg < avg - 0.3 ? '#EC572E' : d.avg < avg ? '#B8842A' : '#6A9A5E';
+      const stddev = d.stddev || 0;
+      const stdColor = stddev >= 1.2 ? '#EC572E' : stddev >= 0.9 ? '#B8842A' : 'var(--muted)';
       return `
       <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bg-mid)">
         <div style="width:160px;font-size:12px;flex-shrink:0">${d.label}</div>
@@ -803,12 +825,45 @@ function initIssueCharts(){
           <div style="position:absolute;left:${avgPct}%;top:-3px;height:24px;width:2px;background:#2C4A2A;opacity:0.6"></div>
           <div style="position:absolute;left:${pct}%;top:1px;transform:translateX(-50%);font-size:10px;font-family:'JetBrains Mono',monospace;color:#fff;font-weight:600;white-space:nowrap;pointer-events:none">${d.avg.toFixed(2)}</div>
         </div>
+        <div style="width:60px;font-size:11px;font-family:'JetBrains Mono',monospace;color:${stdColor};text-align:right;flex-shrink:0">±${stddev.toFixed(2)}</div>
         <div style="width:40px;font-size:11px;color:var(--muted);text-align:right;flex-shrink:0">${d.count}件</div>
       </div>`;
     }).join('') +
-    `<div style="font-size:10px;color:var(--muted);margin-top:8px">緑縦線：直近30日 全体平均 ${avg.toFixed(2)} / 赤＝平均より0.3以上低い / 橙＝やや低い / 緑＝平均以上</div>`;
+    `<div style="font-size:10px;color:var(--muted);margin-top:8px">緑縦線：直近30日 全体平均 ${avg.toFixed(2)} / 赤＝平均より0.3以上低い / 橙＝やや低い / 緑＝平均以上 / ばらつき（±）赤＝1.2以上・橙＝0.9以上</div>`;
 }
 
+// 期間切り替え
+var currentPeriod = '30d';
+var PERIOD_LABELS = {
+  '30d':    '直近30日間',
+  'month':  '今月',
+  'month1': '先月',
+  'month2': '先々月'
+};
+function switchPeriod(period){
+  currentPeriod = period;
+  ['30d','month','month1','month2'].forEach(p=>{
+    const btn = document.getElementById('periodTab-'+p);
+    if(!btn) return;
+    if(p===period){
+      btn.style.color='var(--text)';
+      btn.style.fontWeight='600';
+      btn.style.borderBottom='2px solid var(--orange)';
+    } else {
+      btn.style.color='var(--muted)';
+      btn.style.fontWeight='400';
+      btn.style.borderBottom='2px solid transparent';
+    }
+  });
+  const meta = document.getElementById('sitePeriodMeta');
+  if(meta) meta.textContent = PERIOD_LABELS[period];
+  // 現在のシリーズフィルタを維持して再描画
+  const activeSeries = document.querySelector('#siteTab-all[style*="font-weight:600"]') ? 'all'
+    : document.querySelector('#siteTab-Original[style*="font-weight:600"]') ? 'Original'
+    : document.querySelector('#siteTab-Selection[style*="font-weight:600"]') ? 'Selection'
+    : 'all';
+  filterSites(activeSeries);
+}
 filterSites('all');
 </script>
 </body>
