@@ -90,12 +90,12 @@ ORDER BY r.CREATED_AT DESC LIMIT 500
 """)
     return cur.fetchall()
 
-comments_by_period = {{
+comments_by_period = {
     "30d":    fetch_comments(PERIOD_WHERE["30d"]),
     "month":  fetch_comments(PERIOD_WHERE["month"]),
     "month1": fetch_comments(PERIOD_WHERE["month1"]),
     "month2": fetch_comments(PERIOD_WHERE["month2"]),
-}}
+}
 all_comment_rows = comments_by_period["30d"]
 
 # ⑥ ネガコメ（直近30日★1〜3）
