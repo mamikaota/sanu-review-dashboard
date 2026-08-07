@@ -45,20 +45,28 @@ GROUP BY 1
 """)
 selection_rows = cur.fetchall()
 
-# ④ 拠点別スコア（直近30日）
-cur.execute("""
+# ④ 拠点別スコア（4期間）
+def fetch_sites(where_clause):
+    cur.execute(f"""
 SELECT a.SITE_NAME, COUNT(*),
   ROUND(AVG(CASE WHEN r.RATING > 0 THEN r.RATING END), 2),
-  MAX(a.ARCHITECTURE_TYPE_SERIES) as series
+  MAX(a.ARCHITECTURE_TYPE_SERIES) as series,
+  MAX(a.ARCHITECTURE_TYPE_SERIES_NAME) as series_name
 FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS r
 JOIN PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS res
   ON r.ACCOMMODATION_RESERVATION_ID = res.ACCOMMODATION_RESERVATION_ID
 JOIN PRD_ANALYTICS.CORES.DIM__ACCOMMODATIONS a
   ON res.ACCOMMODATION_ID = a.ACCOMMODATION_ID
-WHERE r.CREATED_AT >= DATEADD('day', -30, CURRENT_TIMESTAMP())
+WHERE {where_clause}
 GROUP BY 1 ORDER BY 3 ASC
 """)
-sites_rows = cur.fetchall()
+    return cur.fetchall()
+
+sites_rows_30d    = fetch_sites("r.CREATED_AT >= DATEADD('day', -30, CURRENT_TIMESTAMP())")
+sites_rows_month  = fetch_sites("DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', CURRENT_DATE())")
+sites_rows_month1 = fetch_sites("DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', DATEADD('month', -1, CURRENT_DATE()))")
+sites_rows_month2 = fetch_sites("DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', DATEADD('month', -2, CURRENT_DATE()))")
+sites_rows = sites_rows_30d  # デフォルト（コメント取得用）
 
 # ⑤ 全コメント（直近30日）
 cur.execute("""
@@ -122,7 +130,8 @@ cur.execute("""
 SELECT
   issue_key,
   COUNT(*) as selected_count,
-  ROUND(AVG(RATING), 2) as avg_rating_selected
+  ROUND(AVG(RATING), 2) as avg_rating_selected,
+  ROUND(STDDEV(RATING), 2) as stddev_rating
 FROM (
   SELECT
     c.RATING,
@@ -217,13 +226,38 @@ issue_trend = [
 
 # ---- 相関分析 ----
 correlation = [
-    {"key": r[0], "label": LABEL_MAP.get(r[0], r[0]), "count": r[1], "avg": float(r[2])}
+    {"key": r[0], "label": LABEL_MAP.get(r[0], r[0]), "count": r[1], "avg": float(r[2]), "stddev": float(r[3] or 0)}
     for r in correlation_rows
     if r[0] in LABEL_MAP
 ]
 
 # ---- 拠点 ----
-sites = [{"name": r[0], "n": r[1], "s": float(r[2] or 0), "series": r[3] or "Original", "comments": []} for r in sites_rows]
+SELECTION_ONLY = {'SOWA', 'CREA', 'SILVERLAKE'}
+def build_sites(rows):
+    return [
+        {
+            "name": r[0], "n": r[1], "s": float(r[2] or 0),
+            "series": "Selection" if (r[4] or "") in SELECTION_ONLY else (r[3] or "Original"),
+            "comments": []
+        }
+        for r in rows
+    ]
+
+sites_by_period = {
+    "30d":    build_sites(sites_rows_30d),
+    "month":  build_sites(sites_rows_month),
+    "month1": build_sites(sites_rows_month1),
+    "month2": build_sites(sites_rows_month2),
+}
+
+sites = [
+    {
+        "name": r[0], "n": r[1], "s": float(r[2] or 0),
+        "series": "Selection" if (r[4] or "") in SELECTION_ONLY else (r[3] or "Original"),
+        "comments": []
+    }
+    for r in sites_rows
+]
 comments_by_site = {}
 for r in all_comment_rows:
     site = r[0]
@@ -279,7 +313,8 @@ data = {
     "correlation": correlation,
     "negCleaning": neg_cleaning,
     "negOther": neg_other,
-    "sites": sites
+    "sites": sites,
+    "sitesByPeriod": sites_by_period
 }
 
 with open('index_template.html', 'r', encoding='utf-8') as f:
