@@ -62,25 +62,41 @@ GROUP BY 1 ORDER BY 3 ASC
 """)
     return cur.fetchall()
 
-sites_rows_30d    = fetch_sites("r.CREATED_AT >= DATEADD('day', -30, CURRENT_TIMESTAMP())")
-sites_rows_month  = fetch_sites("DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', CURRENT_DATE())")
-sites_rows_month1 = fetch_sites("DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', DATEADD('month', -1, CURRENT_DATE()))")
-sites_rows_month2 = fetch_sites("DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', DATEADD('month', -2, CURRENT_DATE()))")
-sites_rows = sites_rows_30d  # デフォルト（コメント取得用）
+PERIOD_WHERE = {
+    "30d":    "r.CREATED_AT >= DATEADD('day', -30, CURRENT_TIMESTAMP())",
+    "month":  "DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', CURRENT_DATE())",
+    "month1": "DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', DATEADD('month', -1, CURRENT_DATE()))",
+    "month2": "DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', DATEADD('month', -2, CURRENT_DATE()))",
+}
 
-# ⑤ 全コメント（直近30日）
-cur.execute("""
+sites_rows_30d    = fetch_sites(PERIOD_WHERE["30d"])
+sites_rows_month  = fetch_sites(PERIOD_WHERE["month"])
+sites_rows_month1 = fetch_sites(PERIOD_WHERE["month1"])
+sites_rows_month2 = fetch_sites(PERIOD_WHERE["month2"])
+sites_rows = sites_rows_30d
+
+# ⑤ 全コメント（4期間）
+def fetch_comments(where_clause):
+    cur.execute(f"""
 SELECT a.SITE_NAME, r.RATING, r.COMMENT, TO_CHAR(r.CREATED_AT, 'MM/DD')
 FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS r
 JOIN PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS res
   ON r.ACCOMMODATION_RESERVATION_ID = res.ACCOMMODATION_RESERVATION_ID
 JOIN PRD_ANALYTICS.CORES.DIM__ACCOMMODATIONS a
   ON res.ACCOMMODATION_ID = a.ACCOMMODATION_ID
-WHERE r.CREATED_AT >= DATEADD('day', -30, CURRENT_TIMESTAMP())
+WHERE {where_clause}
   AND r.COMMENT IS NOT NULL AND r.COMMENT != ''
 ORDER BY r.CREATED_AT DESC LIMIT 500
 """)
-all_comment_rows = cur.fetchall()
+    return cur.fetchall()
+
+comments_by_period = {{
+    "30d":    fetch_comments(PERIOD_WHERE["30d"]),
+    "month":  fetch_comments(PERIOD_WHERE["month"]),
+    "month1": fetch_comments(PERIOD_WHERE["month1"]),
+    "month2": fetch_comments(PERIOD_WHERE["month2"]),
+}}
+all_comment_rows = comments_by_period["30d"]
 
 # ⑥ ネガコメ（直近30日★1〜3）
 cur.execute("""
@@ -233,40 +249,34 @@ correlation = [
 
 # ---- 拠点 ----
 SELECTION_ONLY = {'SOWA', 'CREA', 'SILVERLAKE'}
-def build_sites(rows):
+
+def attach_comments(site_rows, comment_rows):
+    def group_comments(rows):
+        d = {}
+        for r in rows:
+            site = r[0]
+            if site not in d:
+                d[site] = []
+            if len(d[site]) < 5:
+                d[site].append({"r": r[1], "t": (r[2] or "")[:100], "d": r[3]})
+        return d
+    cmap = group_comments(comment_rows)
     return [
         {
             "name": r[0], "n": r[1], "s": float(r[2] or 0),
             "series": "Selection" if (r[4] or "") in SELECTION_ONLY else (r[3] or "Original"),
-            "comments": []
+            "comments": cmap.get(r[0], [])
         }
-        for r in rows
+        for r in site_rows
     ]
 
 sites_by_period = {
-    "30d":    build_sites(sites_rows_30d),
-    "month":  build_sites(sites_rows_month),
-    "month1": build_sites(sites_rows_month1),
-    "month2": build_sites(sites_rows_month2),
+    "30d":    attach_comments(sites_rows_30d,    comments_by_period["30d"]),
+    "month":  attach_comments(sites_rows_month,  comments_by_period["month"]),
+    "month1": attach_comments(sites_rows_month1, comments_by_period["month1"]),
+    "month2": attach_comments(sites_rows_month2, comments_by_period["month2"]),
 }
-
-sites = [
-    {
-        "name": r[0], "n": r[1], "s": float(r[2] or 0),
-        "series": "Selection" if (r[4] or "") in SELECTION_ONLY else (r[3] or "Original"),
-        "comments": []
-    }
-    for r in sites_rows
-]
-comments_by_site = {}
-for r in all_comment_rows:
-    site = r[0]
-    if site not in comments_by_site:
-        comments_by_site[site] = []
-    if len(comments_by_site[site]) < 5:
-        comments_by_site[site].append({"r": r[1], "t": (r[2] or "")[:100], "d": r[3]})
-for site in sites:
-    site["comments"] = comments_by_site.get(site["name"], [])
+sites = sites_by_period["30d"]
 
 # ---- ネガカテゴリ ----
 categories_clean = [
