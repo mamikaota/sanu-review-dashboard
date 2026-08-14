@@ -172,19 +172,29 @@ ORDER BY avg_rating_selected ASC
 """)
 correlation_rows = cur.fetchall()
 
-# ⑨ 月次 滞在数・レビュー平均（今年）
+# ⑨ 月次 滞在数・レビュー平均（2026年5月以降、今後も増える形）
 cur.execute("""
 SELECT
-  DATE_TRUNC('month', r.CHECKED_IN_AT) as month,
-  COUNT(*) as stays,
-  ROUND(AVG(CASE WHEN rv.RATING > 0 THEN rv.RATING END), 2) as avg_rating,
-  CASE WHEN DATE_TRUNC('month', r.CHECKED_IN_AT) = DATE_TRUNC('month', CURRENT_DATE()) THEN TRUE ELSE FALSE END as is_partial
-FROM PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS r
-LEFT JOIN PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS rv
-  ON r.STAY_REVIEW_ID = rv.STAY_REVIEW_ID
-WHERE YEAR(r.CHECKED_IN_AT) = YEAR(CURRENT_DATE())
-  AND r.STAY_STATUS = 'Stayed'
-GROUP BY 1, 4 ORDER BY 1
+  s.month,
+  s.stays,
+  r.avg_score,
+  CASE WHEN s.month = DATE_TRUNC('month', CURRENT_DATE()) THEN TRUE ELSE FALSE END as is_partial
+FROM (
+  SELECT DATE_TRUNC('month', CHECKED_IN_AT) as month, COUNT(*) as stays
+  FROM PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS
+  WHERE CHECKED_IN_AT >= '2026-05-01'
+    AND STAY_STATUS = 'Stayed'
+  GROUP BY 1
+) s
+LEFT JOIN (
+  SELECT DATE_TRUNC('month', CREATED_AT) as month,
+    ROUND(AVG(CASE WHEN RATING > 0 THEN RATING END), 2) as avg_score
+  FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS
+  WHERE CREATED_AT >= '2026-05-01'
+  GROUP BY 1
+) r ON s.month = r.month
+WHERE s.month < DATE_TRUNC('month', CURRENT_DATE())  -- 当月は除外
+ORDER BY 1
 """)
 monthly_stats_rows = cur.fetchall()
 
