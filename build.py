@@ -370,12 +370,13 @@ data = {
     "sitesAvgByPeriod": sites_avg_by_period,
     "monthlyStats": [
         {
-            "label": f"{str(r[0])[:7].replace('-', '/')[5:]}月",
-            "stays": r[1],
-            "avg": float(r[2] or 0),
+            "label": f"{int(str(r[0])[:7].split('-')[1])}月",
+            "stays": int(r[1]),
+            "avg": float(r[2]) if r[2] else None,
             "partial": bool(r[3])
         }
         for r in monthly_stats_rows
+        if r[1] and r[1] > 0
     ]
 }
 
