@@ -508,6 +508,12 @@ body {
         Selection Series
       </button>
     </div>
+    <div id="siteAvgBar" style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--forest);color:white;border-radius:6px;margin-bottom:8px;font-size:12px">
+      <span style="opacity:0.7">全拠点平均（5件以上）</span>
+      <span id="siteAvgScore" style="font-size:18px;font-weight:600;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em">—</span>
+      <span style="opacity:0.6;font-size:11px">/ 5.00</span>
+      <span style="opacity:0.4;font-size:11px;margin-left:4px">目標：4.75以上</span>
+    </div>
     <div class="site-table-wrap">
       <div class="site-table-head">
         <span>#</span>
@@ -698,6 +704,13 @@ function filterSites(filter){
   const periodData = (DATA.sitesByPeriod && DATA.sitesByPeriod[currentPeriod]) ? DATA.sitesByPeriod[currentPeriod] : DATA.sites;
   const sites = filter==='all' ? periodData : periodData.filter(s=>s.series===filter);
   renderSiteTable(sites);
+  // 全拠点平均を更新
+  const avgEl = document.getElementById('siteAvgScore');
+  if(avgEl && DATA.sitesAvgByPeriod){
+    const avg = DATA.sitesAvgByPeriod[currentPeriod] || 0;
+    avgEl.textContent = avg > 0 ? avg.toFixed(2) : '—';
+    avgEl.style.color = avg >= 4.75 ? '#9ACA8A' : avg >= 4.5 ? '#F5C842' : '#EC572E';
+  }
 }
 
 
