@@ -172,6 +172,22 @@ ORDER BY avg_rating_selected ASC
 """)
 correlation_rows = cur.fetchall()
 
+# ⑨ 月次 滞在数・レビュー平均（今年）
+cur.execute("""
+SELECT
+  DATE_TRUNC('month', r.CHECKED_IN_AT) as month,
+  COUNT(*) as stays,
+  ROUND(AVG(CASE WHEN rv.RATING > 0 THEN rv.RATING END), 2) as avg_rating,
+  CASE WHEN DATE_TRUNC('month', r.CHECKED_IN_AT) = DATE_TRUNC('month', CURRENT_DATE()) THEN TRUE ELSE FALSE END as is_partial
+FROM PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS r
+LEFT JOIN PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS rv
+  ON r.STAY_REVIEW_ID = rv.STAY_REVIEW_ID
+WHERE YEAR(r.CHECKED_IN_AT) = YEAR(CURRENT_DATE())
+  AND r.STAY_STATUS = 'Stayed'
+GROUP BY 1, 4 ORDER BY 1
+""")
+monthly_stats_rows = cur.fetchall()
+
 cur.close()
 conn.close()
 
@@ -351,7 +367,16 @@ data = {
     "negOther": neg_other,
     "sites": sites,
     "sitesByPeriod": sites_by_period,
-    "sitesAvgByPeriod": sites_avg_by_period
+    "sitesAvgByPeriod": sites_avg_by_period,
+    "monthlyStats": [
+        {
+            "label": f"{str(r[0])[:7].replace('-', '/')[5:]}月",
+            "stays": r[1],
+            "avg": float(r[2] or 0),
+            "partial": bool(r[3])
+        }
+        for r in monthly_stats_rows
+    ]
 }
 
 with open('index_template.html', 'r', encoding='utf-8') as f:
