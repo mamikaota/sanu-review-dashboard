@@ -172,17 +172,20 @@ ORDER BY avg_rating_selected ASC
 """)
 correlation_rows = cur.fetchall()
 
-# ⑨ 月次 滞在数・レビュー平均（2026年5月以降、今後も増える形）
+# ⑨ 月次 滞在数・泊数・レビュー平均（2026年1月以降、当月除外）
 cur.execute("""
 SELECT
   s.month,
   s.stays,
+  s.nights,
   r.avg_score,
   CASE WHEN s.month = DATE_TRUNC('month', CURRENT_DATE()) THEN TRUE ELSE FALSE END as is_partial
 FROM (
-  SELECT DATE_TRUNC('month', CHECKED_IN_AT) as month, COUNT(*) as stays
+  SELECT DATE_TRUNC('month', CHECKED_IN_AT) as month,
+    COUNT(*) as stays,
+    SUM(NIGHTS) as nights
   FROM PRD_ANALYTICS.CORES.FACT__ACCOMMODATION_RESERVATIONS
-  WHERE CHECKED_IN_AT >= '2026-05-01'
+  WHERE CHECKED_IN_AT >= '2026-01-01'
     AND STAY_STATUS = 'Stayed'
   GROUP BY 1
 ) s
@@ -190,10 +193,10 @@ LEFT JOIN (
   SELECT DATE_TRUNC('month', CREATED_AT) as month,
     ROUND(AVG(CASE WHEN RATING > 0 THEN RATING END), 2) as avg_score
   FROM PRD_ANALYTICS.CORES.FACT__STAY_REVIEWS
-  WHERE CREATED_AT >= '2026-05-01'
+  WHERE CREATED_AT >= '2026-01-01'
   GROUP BY 1
 ) r ON s.month = r.month
-WHERE s.month < DATE_TRUNC('month', CURRENT_DATE())  -- 当月は除外
+WHERE s.month < DATE_TRUNC('month', CURRENT_DATE())
 ORDER BY 1
 """)
 monthly_stats_rows = cur.fetchall()
@@ -382,12 +385,26 @@ data = {
         {
             "label": f"{int(str(r[0])[:7].split('-')[1])}月",
             "stays": int(r[1]),
-            "avg": float(r[2]) if r[2] else None,
-            "partial": bool(r[3])
+            "nights": int(r[2]) if r[2] else 0,
+            "avg": float(r[3]) if r[3] else None,
+            "partial": bool(r[4])
         }
         for r in monthly_stats_rows
         if r[1] and r[1] > 0
-    ]
+    ],
+    "staysCorrelation": (lambda rows: (
+        lambda stays, scores, n, ms, mr:
+        round(
+            sum((stays[i]-ms)*(scores[i]-mr) for i in range(n)) / n /
+            ((sum((x-ms)**2 for x in stays)/n)**0.5 * (sum((x-mr)**2 for x in scores)/n)**0.5), 3
+        ) if n >= 3 else None
+    )(
+        [int(r[1]) for r in rows if r[1] and r[3]],
+        [float(r[3]) for r in rows if r[1] and r[3]],
+        len([r for r in rows if r[1] and r[3]]),
+        sum(int(r[1]) for r in rows if r[1] and r[3]) / max(len([r for r in rows if r[1] and r[3]]),1),
+        sum(float(r[3]) for r in rows if r[1] and r[3]) / max(len([r for r in rows if r[1] and r[3]]),1)
+    ))(monthly_stats_rows)
 }
 
 with open('index_template.html', 'r', encoding='utf-8') as f:
