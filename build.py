@@ -286,6 +286,24 @@ sites_by_period = {
 }
 sites = sites_by_period["30d"]
 
+# 期間別全拠点平均（件数5件以上の拠点のみ）
+def calc_avg(sites_list):
+    valid = [s for s in sites_list if s["n"] >= 5]
+    if not valid:
+        return 0
+    total_n = sum(s["n"] for s in valid)
+    total_s = sum(s["s"] * s["n"] for s in valid)
+    return round(total_s / total_n, 2) if total_n > 0 else 0
+
+sites_avg_by_period = {
+    "30d":    calc_avg(sites_by_period["30d"]),
+    "month":  calc_avg(sites_by_period["month"]),
+    "month1": calc_avg(sites_by_period["month1"]),
+    "month2": calc_avg(sites_by_period["month2"]),
+    "h1":     calc_avg(sites_by_period["h1"]),
+    "h2":     calc_avg(sites_by_period["h2"]),
+}
+
 # ---- ネガカテゴリ ----
 categories_clean = [
     {"id": "c1", "icon": "🧹", "name": "清掃品質",
@@ -332,7 +350,8 @@ data = {
     "negCleaning": neg_cleaning,
     "negOther": neg_other,
     "sites": sites,
-    "sitesByPeriod": sites_by_period
+    "sitesByPeriod": sites_by_period,
+    "sitesAvgByPeriod": sites_avg_by_period
 }
 
 with open('index_template.html', 'r', encoding='utf-8') as f:
