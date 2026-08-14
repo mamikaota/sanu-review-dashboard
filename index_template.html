@@ -435,6 +435,17 @@ body {
   </div>
 
   <div class="section">
+    <div class="sec-title">虫以外の指摘率推移（9項目）</div>
+    <div class="sec-meta">2026年4月以降 / 2週間単位 / 虫の侵入気になるを除く（%）</div>
+    <div class="card">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;row-gap:6px" id="trendLegend2"></div>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="trendChart2"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
     <div class="sec-title">気になった点×レビュー平均相関分析</div>
     <div class="sec-meta">2026年4月以降 / 選択時の平均レビュー（低い順）/ 赤ほどスコアへの影響大</div>
     <div class="card" style="padding:20px 24px">
@@ -457,7 +468,7 @@ body {
       </a>
     </div>
     <div class="sec-meta" id="sitePeriodMeta">直近30日間</div>
-    <div style="display:flex;gap:0;margin-bottom:8px;border-bottom:1px solid var(--bg-mid)">
+    <div style="display:flex;gap:0;margin-bottom:8px;border-bottom:1px solid var(--bg-mid);flex-wrap:wrap">
       <button id="periodTab-month2" onclick="switchPeriod('month2')"
         style="padding:6px 14px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap">
         先々月
@@ -473,6 +484,14 @@ body {
       <button id="periodTab-30d" onclick="switchPeriod('30d')"
         style="padding:6px 14px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--text);font-weight:600;border-bottom:2px solid var(--orange);margin-bottom:-1px;white-space:nowrap">
         直近30日
+      </button>
+      <button id="periodTab-h1" onclick="switchPeriod('h1')"
+        style="padding:6px 14px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap">
+        上期（1〜6月）
+      </button>
+      <button id="periodTab-h2" onclick="switchPeriod('h2')"
+        style="padding:6px 14px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap">
+        下期（7〜12月）
       </button>
     </div>
     <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--bg-mid)">
@@ -799,6 +818,42 @@ function initIssueCharts(){
     }
   });
 
+  // ---- 虫以外9項目グラフ ----
+  const keys9 = trendKeys.filter(k => k !== 'insect');
+  document.getElementById('trendLegend2').innerHTML = keys9.map(k=>`
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text)">
+      <span style="width:20px;height:3px;background:${allColors[k]||'#999'};display:inline-block;border-radius:2px"></span>
+      ${allLabels[k]||k}
+    </div>`).join('');
+
+  new Chart(document.getElementById('trendChart2'),{
+    type:'line',
+    data:{
+      labels: d.map(r=>r.w),
+      datasets: keys9.map(k=>({
+        label: allLabels[k]||k,
+        data: d.map(r=>r[k]||0),
+        borderColor: allColors[k]||'#999',
+        backgroundColor: (allColors[k]||'#999')+'11',
+        borderWidth: 1.5,
+        pointRadius: 3,
+        fill: false,
+        tension: 0.3
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw.toFixed(1)}%`}}
+      },
+      scales:{
+        y:{min:0, ticks:{callback:v=>v+'%',font:{size:10}}, grid:{color:'rgba(0,0,0,0.04)'}},
+        x:{grid:{display:false}, ticks:{font:{size:10}, color:'var(--muted)'}}
+      }
+    }
+  });
+
   // ---- 相関分析：横棒グラフ ----
   const avg = DATA.kpi.avgScore;
   const sorted = [...DATA.correlation].sort((a,b)=>a.avg-b.avg);
@@ -850,17 +905,20 @@ function calcPeriodLabels(){
   // 先々月
   const m2Start = new Date(now.getFullYear(), now.getMonth()-2, 1);
   const m2End = new Date(now.getFullYear(), now.getMonth()-1, 0);
+  const year = now.getFullYear();
   return {
     '30d':    `直近30日\n${fmt(d30)}〜${today}`,
     'month':  `今月\n${fmt(mStart)}〜${today}`,
     'month1': `先月\n${fmt(m1Start)}〜${fmt(m1End)}`,
-    'month2': `先々月\n${fmt(m2Start)}〜${fmt(m2End)}`
+    'month2': `先々月\n${fmt(m2Start)}〜${fmt(m2End)}`,
+    'h1':     `上期（1〜6月）\n${year}/01/01〜${year}/06/30`,
+    'h2':     `下期（7〜12月）\n${year}/07/01〜${year}/12/31`
   };
 }
 var PERIOD_LABELS = calcPeriodLabels();
 function switchPeriod(period){
   currentPeriod = period;
-  ['30d','month','month1','month2'].forEach(p=>{
+  ['30d','month','month1','month2','h1','h2'].forEach(p=>{
     const btn = document.getElementById('periodTab-'+p);
     if(!btn) return;
     if(p===period){
