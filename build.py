@@ -67,12 +67,16 @@ PERIOD_WHERE = {
     "month":  "DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', CURRENT_DATE())",
     "month1": "DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', DATEADD('month', -1, CURRENT_DATE()))",
     "month2": "DATE_TRUNC('month', r.CREATED_AT) = DATE_TRUNC('month', DATEADD('month', -2, CURRENT_DATE()))",
+    "h1":     "MONTH(r.CREATED_AT) BETWEEN 1 AND 6 AND YEAR(r.CREATED_AT) = YEAR(CURRENT_DATE())",
+    "h2":     "MONTH(r.CREATED_AT) BETWEEN 7 AND 12 AND YEAR(r.CREATED_AT) = YEAR(CURRENT_DATE())",
 }
 
 sites_rows_30d    = fetch_sites(PERIOD_WHERE["30d"])
 sites_rows_month  = fetch_sites(PERIOD_WHERE["month"])
 sites_rows_month1 = fetch_sites(PERIOD_WHERE["month1"])
 sites_rows_month2 = fetch_sites(PERIOD_WHERE["month2"])
+sites_rows_h1     = fetch_sites(PERIOD_WHERE["h1"])
+sites_rows_h2     = fetch_sites(PERIOD_WHERE["h2"])
 sites_rows = sites_rows_30d
 
 # ⑤ 全コメント（4期間）
@@ -95,6 +99,8 @@ comments_by_period = {
     "month":  fetch_comments(PERIOD_WHERE["month"]),
     "month1": fetch_comments(PERIOD_WHERE["month1"]),
     "month2": fetch_comments(PERIOD_WHERE["month2"]),
+    "h1":     fetch_comments(PERIOD_WHERE["h1"]),
+    "h2":     fetch_comments(PERIOD_WHERE["h2"]),
 }
 all_comment_rows = comments_by_period["30d"]
 
@@ -275,6 +281,8 @@ sites_by_period = {
     "month":  attach_comments(sites_rows_month,  comments_by_period["month"]),
     "month1": attach_comments(sites_rows_month1, comments_by_period["month1"]),
     "month2": attach_comments(sites_rows_month2, comments_by_period["month2"]),
+    "h1":     attach_comments(sites_rows_h1,     comments_by_period["h1"]),
+    "h2":     attach_comments(sites_rows_h2,     comments_by_period["h2"]),
 }
 sites = sites_by_period["30d"]
 
